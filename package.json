@@ -1,0 +1,32 @@
+{
+  "name": "bon-voyage",
+  "version": "1.0.0",
+  "description": "regenven startup prototype",
+  "homepage": "https://github.com/anupriyai/bon-voyage#readme",
+  "bugs": {
+    "url": "https://github.com/anupriyai/bon-voyage/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anupriyai/bon-voyage.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^16.4.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^7.0.2"
+  }
+}
