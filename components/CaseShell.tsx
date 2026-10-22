@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { COORDINATOR } from "@/lib/data";
 import { caseTitle, managedLine } from "@/lib/engine";
-import { recordProgress, useCase } from "@/lib/store";
+import { normEmail, recordProgress, useCase } from "@/lib/store";
 import CoordinatorChat from "./CoordinatorChat";
 import FlowHeader from "./FlowHeader";
 import { ChatIcon, CheckIcon } from "./Icons";
@@ -20,32 +21,25 @@ const TABS = [
 ];
 
 export default function CaseShell({ children }: { children: ReactNode }) {
-  const { state, ready, openChat } = useCase();
+  const { state, ready, hasActive, session, openChat } = useCase();
   const path = usePathname();
+  const router = useRouter();
+  const allowed =
+    ready && !!session && hasActive && state.complete && normEmail(state.intake.email) === session.email;
 
-  if (!ready) {
-    return (
-      <>
-        <FlowHeader />
-        <main className="container case-main" aria-busy="true">
-          <div className="wiz-skeleton" />
-        </main>
-      </>
-    );
-  }
+  // Cases are private to the signed-in email: send everyone else to log in, or to their list of cases.
+  useEffect(() => {
+    if (!ready) return;
+    if (!session) router.replace(`/login?next=${encodeURIComponent(path)}`);
+    else if (!allowed) router.replace("/account");
+  }, [ready, session, allowed, path, router]);
 
-  if (!state.complete) {
+  if (!allowed) {
     return (
       <>
         <FlowHeader exitLabel="Back to home" />
-        <main className="container case-main">
-          <div className="empty-state">
-            <h1>No case yet</h1>
-            <p>Answer a few questions about the situation and we will build the case from there.</p>
-            <Link href="/start" className="btn btn-primary">
-              Start a care request
-            </Link>
-          </div>
+        <main className="container case-main" aria-busy="true">
+          <div className="wiz-skeleton" />
         </main>
       </>
     );
@@ -67,6 +61,9 @@ export default function CaseShell({ children }: { children: ReactNode }) {
       <div className="case-top">
         <div className="container case-top-inner">
           <div>
+            <Link href="/account" className="back-link">
+              ← My cases
+            </Link>
             <p className="case-eyebrow">Case</p>
             <h1 className="case-title">{caseTitle(state.intake)}</h1>
             <p className="case-sub">{managedLine(state.intake)}</p>

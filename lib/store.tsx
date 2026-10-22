@@ -29,7 +29,7 @@ import {
   type TaskStatus,
 } from "./engine";
 
-const KEY = "bon-voyage-case-v1";
+const KEY = "bon-voyage-store-v2";
 const DAY = 86400000;
 
 export interface RecFile {
@@ -53,6 +53,8 @@ export interface ApprovedChange {
 }
 
 export interface CaseState {
+  id: string;
+  updatedAt: string;
   intake: Intake;
   draftStep: number;
   complete: boolean;
@@ -73,8 +75,10 @@ export interface CaseState {
   chat: ChatMsg[];
 }
 
-export function initialState(): CaseState {
+export function initialState(id = ""): CaseState {
   return {
+    id,
+    updatedAt: new Date(0).toISOString(),
     intake: emptyIntake(),
     draftStep: 1,
     complete: false,
@@ -96,7 +100,7 @@ export function initialState(): CaseState {
   };
 }
 
-function sampleState(): CaseState {
+function sampleState(id: string, email: string): CaseState {
   const now = new Date();
   const ago = (d: number) => new Date(now.getTime() - d * DAY).toISOString();
   const f = (name: string, size: number, daysAgo: number, docDate?: string): RecFile => ({
@@ -106,7 +110,8 @@ function sampleState(): CaseState {
     docDate,
   });
   return {
-    ...initialState(),
+    ...initialState(id),
+    updatedAt: now.toISOString(),
     complete: true,
     sample: true,
     createdAt: now.toISOString(),
@@ -118,7 +123,7 @@ function sampleState(): CaseState {
       relationship: "Son",
       managerName: "Omar",
       patientSeesAll: true,
-      email: "omar@example.com",
+      email,
       phone: "",
       contactVia: "email",
       diagnosis: "colon",
@@ -180,16 +185,63 @@ export function recordProgress(state: CaseState, now: Date) {
   return { total: items.length, ready, translating, missing };
 }
 
-/* ---------- Context ---------- */
+/* ---------- Accounts and saved cases ---------- */
+
+interface Store {
+  session: { email: string } | null;
+  activeId: string | null;
+  cases: Record<string, CaseState>;
+}
+
+const emptyStore = (): Store => ({ session: null, activeId: null, cases: {} });
+const EMPTY_CASE = initialState();
+
+export const normEmail = (e: string) => e.trim().toLowerCase();
+const uid = () => `c_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+
+/** A case belongs to whoever's email is on it. Unfinished drafts have no owner yet. */
+export function ownedBy(c: CaseState, email: string): boolean {
+  return c.complete && normEmail(c.intake.email) === normEmail(email);
+}
+
+/** Where to drop someone back into a case: the furthest step they have reached. */
+export function resumePath(c: CaseState): string {
+  if (c.planApprovedAt) return "/case/dashboard";
+  if (c.chosenId) return "/case/plan";
+  if (c.secondOpinionAt) return "/case/options";
+  if (Object.values(c.records).some((r) => r.files.length > 0)) return "/case/second-opinion";
+  return "/case/records";
+}
+
+function latestIncomplete(cases: Record<string, CaseState>): CaseState | undefined {
+  return Object.values(cases)
+    .filter((c) => !c.complete)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+}
 
 interface Ctx {
+  /** The active case, or an empty placeholder when none is open. */
   state: CaseState;
+  hasActive: boolean;
   ready: boolean;
+  session: { email: string } | null;
+  /** Finished cases belonging to the signed-in email, newest first. */
+  myCases: CaseState[];
+  /** The unfinished request in this browser, if the person has started filling one in. */
+  draft: CaseState | null;
   update: (fn: (s: CaseState) => CaseState) => void;
   patch: (p: Partial<CaseState>) => void;
   setIntake: (p: Partial<Intake>) => void;
+  /** Open the unfinished request (or start one), optionally pre-filling answers. */
+  startDraft: (prefill?: Partial<Intake>, fresh?: boolean) => void;
+  openCase: (id: string) => void;
+  deleteCase: (id: string) => void;
+  /** Sign in with an email that has saved cases. Returns the cases found (empty means no sign-in). */
+  login: (email: string) => CaseState[];
+  /** Create the session once a request has been submitted. */
+  signIn: (email: string) => void;
+  logout: () => void;
   loadSample: () => void;
-  resetCase: () => void;
   chatOpen: boolean;
   chatDraft: string;
   openChat: (draft?: string) => void;
@@ -200,7 +252,7 @@ interface Ctx {
 const CaseContext = createContext<Ctx | null>(null);
 
 export function CaseProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<CaseState>(initialState);
+  const [store, setStore] = useState<Store>(emptyStore);
   const [ready, setReady] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatDraft, setChatDraft] = useState("");
@@ -210,8 +262,12 @@ export function CaseProvider({ children }: { children: ReactNode }) {
     try {
       const raw = window.localStorage.getItem(KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as Partial<CaseState>;
-        setState({ ...initialState(), ...parsed, intake: { ...emptyIntake(), ...(parsed.intake ?? {}) } });
+        const parsed = JSON.parse(raw) as Partial<Store>;
+        const cases: Record<string, CaseState> = {};
+        for (const [id, c] of Object.entries(parsed.cases ?? {})) {
+          cases[id] = { ...initialState(id), ...c, id, intake: { ...emptyIntake(), ...(c.intake ?? {}) } };
+        }
+        setStore({ session: parsed.session ?? null, activeId: parsed.activeId ?? null, cases });
       }
     } catch {
       // Ignore unreadable or blocked storage; the app works without it.
@@ -224,72 +280,174 @@ export function CaseProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!ready) return;
     try {
-      window.localStorage.setItem(KEY, JSON.stringify(state));
+      window.localStorage.setItem(KEY, JSON.stringify(store));
     } catch {
       // Storage full or blocked.
     }
-  }, [state, ready]);
+  }, [store, ready]);
 
-  const update = useCallback((fn: (s: CaseState) => CaseState) => setState(fn), []);
-  const patch = useCallback((p: Partial<CaseState>) => setState((s) => ({ ...s, ...p })), []);
-  const setIntake = useCallback(
-    (p: Partial<Intake>) => setState((s) => ({ ...s, intake: { ...s.intake, ...p } })),
-    [],
-  );
-  const loadSample = useCallback(() => setState(sampleState()), []);
-  const resetCase = useCallback(() => {
-    setState(initialState());
-    try {
-      window.localStorage.removeItem(KEY);
-    } catch {
-      // ignore
-    }
+  const active = store.activeId ? store.cases[store.activeId] : undefined;
+  const state = active ?? EMPTY_CASE;
+
+  const updateCase = useCallback((id: string, fn: (s: CaseState) => CaseState) => {
+    setStore((st) => {
+      const cur = st.cases[id];
+      if (!cur) return st;
+      return { ...st, cases: { ...st.cases, [id]: { ...fn(cur), id, updatedAt: new Date().toISOString() } } };
+    });
   }, []);
 
-  const openChat = useCallback((draft?: string) => {
-    setChatDraft(draft ?? "");
+  const activeIdRef = useRef<string | null>(null);
+  activeIdRef.current = store.activeId;
+
+  const update = useCallback(
+    (fn: (s: CaseState) => CaseState) => {
+      if (activeIdRef.current) updateCase(activeIdRef.current, fn);
+    },
+    [updateCase],
+  );
+  const patch = useCallback((p: Partial<CaseState>) => update((s) => ({ ...s, ...p })), [update]);
+  const setIntake = useCallback(
+    (p: Partial<Intake>) => update((s) => ({ ...s, intake: { ...s.intake, ...p } })),
+    [update],
+  );
+
+  const startDraft = useCallback((prefill?: Partial<Intake>, fresh?: boolean) => {
+    setStore((st) => {
+      const cases = { ...st.cases };
+      if (fresh) for (const c of Object.values(cases)) if (!c.complete) delete cases[c.id];
+      const activeCase = st.activeId ? cases[st.activeId] : undefined;
+      let draft = activeCase && !activeCase.complete ? activeCase : latestIncomplete(cases);
+      if (!draft) {
+        const id = uid();
+        draft = {
+          ...initialState(id),
+          updatedAt: new Date().toISOString(),
+          intake: { ...emptyIntake(), email: st.session?.email ?? "" },
+        };
+      }
+      cases[draft.id] = { ...draft, intake: { ...draft.intake, ...(prefill ?? {}) } };
+      return { ...st, activeId: draft.id, cases };
+    });
+  }, []);
+
+  const openCase = useCallback((id: string) => setStore((st) => (st.cases[id] ? { ...st, activeId: id } : st)), []);
+
+  const deleteCase = useCallback(
+    (id: string) =>
+      setStore((st) => {
+        const cases = { ...st.cases };
+        delete cases[id];
+        return { ...st, cases, activeId: st.activeId === id ? null : st.activeId };
+      }),
+    [],
+  );
+
+  const login = useCallback(
+    (email: string) => {
+      const e = normEmail(email);
+      const found = Object.values(store.cases)
+        .filter((c) => ownedBy(c, e))
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      if (found.length > 0) {
+        setStore((st) => ({ ...st, session: { email: e }, activeId: found.length === 1 ? found[0].id : null }));
+      }
+      return found;
+    },
+    [store.cases],
+  );
+
+  const signIn = useCallback(
+    (email: string) => setStore((st) => ({ ...st, session: { email: normEmail(email) } })),
+    [],
+  );
+  const logout = useCallback(() => {
+    setChatOpen(false);
+    setStore((st) => ({ ...st, session: null, activeId: null }));
+  }, []);
+
+  const loadSample = useCallback(() => {
+    setStore((st) => {
+      const id = uid();
+      const email = st.session?.email ?? "omar@example.com";
+      return {
+        ...st,
+        session: st.session ?? { email },
+        activeId: id,
+        cases: { ...st.cases, [id]: sampleState(id, email) },
+      };
+    });
+  }, []);
+
+  const openChat = useCallback((draftText?: string) => {
+    setChatDraft(draftText ?? "");
     setChatOpen(true);
   }, []);
   const closeChat = useCallback(() => setChatOpen(false), []);
 
-  const sendChat = useCallback((text: string) => {
-    const clean = text.trim();
-    if (!clean) return;
-    const at = new Date().toISOString();
-    setState((s) => ({ ...s, chat: [...s.chat, { from: "you", text: clean, at }] }));
-    setChatDraft("");
-    const t = window.setTimeout(() => {
-      setState((s) => ({
-        ...s,
-        chat: [
-          ...s.chat,
-          {
-            from: "coordinator",
-            at: new Date().toISOString(),
-            text: "Thank you, I've noted that. I'll check with the hospital and reply here within 2 hours (8am–8pm). If it's urgent, tell me and I'll call.",
-          },
-        ],
-      }));
-    }, 1400);
-    timers.current.push(t);
-  }, []);
+  const sendChat = useCallback(
+    (text: string) => {
+      const clean = text.trim();
+      const id = activeIdRef.current;
+      if (!clean || !id) return;
+      updateCase(id, (s) => ({ ...s, chat: [...s.chat, { from: "you", text: clean, at: new Date().toISOString() }] }));
+      setChatDraft("");
+      const t = window.setTimeout(() => {
+        updateCase(id, (s) => ({
+          ...s,
+          chat: [
+            ...s.chat,
+            {
+              from: "coordinator",
+              at: new Date().toISOString(),
+              text: "Thank you, I've noted that. I'll check with the hospital and reply here within 2 hours (8am–8pm). If it's urgent, tell me and I'll call.",
+            },
+          ],
+        }));
+      }, 1400);
+      timers.current.push(t);
+    },
+    [updateCase],
+  );
+
+  const myCases = useMemo(() => {
+    const email = store.session?.email;
+    if (!email) return [];
+    return Object.values(store.cases)
+      .filter((c) => ownedBy(c, email))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }, [store.cases, store.session]);
+
+  const draft = useMemo(() => {
+    const d = latestIncomplete(store.cases);
+    return d && d.intake.patientName.trim() ? d : null;
+  }, [store.cases]);
 
   const value = useMemo<Ctx>(
     () => ({
       state,
+      hasActive: !!active,
       ready,
+      session: store.session,
+      myCases,
+      draft,
       update,
       patch,
       setIntake,
+      startDraft,
+      openCase,
+      deleteCase,
+      login,
+      signIn,
+      logout,
       loadSample,
-      resetCase,
       chatOpen,
       chatDraft,
       openChat,
       closeChat,
       sendChat,
     }),
-    [state, ready, update, patch, setIntake, loadSample, resetCase, chatOpen, chatDraft, openChat, closeChat, sendChat],
+    [state, active, ready, store.session, myCases, draft, update, patch, setIntake, startDraft, openCase, deleteCase, login, signIn, logout, loadSample, chatOpen, chatDraft, openChat, closeChat, sendChat],
   );
 
   return <CaseContext.Provider value={value}>{children}</CaseContext.Provider>;

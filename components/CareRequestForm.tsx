@@ -36,7 +36,7 @@ function matchOrigin(text: string): Pick<Intake, "origin" | "originOther"> {
 /** Short starter on the landing page. The full intake happens in the 5-step flow at /start. */
 export default function CareRequestForm() {
   const router = useRouter();
-  const { state, setIntake } = useCase();
+  const { startDraft } = useCase();
   const [treatment, setTreatment] = useState("");
   const [origin, setOrigin] = useState("");
 
@@ -45,8 +45,8 @@ export default function CareRequestForm() {
       className="request-card"
       onSubmit={(e) => {
         e.preventDefault();
-        // Never overwrite a finished case from the landing page; /start offers to resume it.
-        if (!state.complete) setIntake({ ...matchDiagnosis(treatment), ...matchOrigin(origin) });
+        // Pre-fills a draft request. A finished case is never touched; /start opens a separate draft.
+        startDraft({ ...matchDiagnosis(treatment), ...matchOrigin(origin) });
         router.push("/start");
       }}
     >

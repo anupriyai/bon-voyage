@@ -1,5 +1,5 @@
 import Link from "next/link";
-import HeaderCaseLink from "./HeaderCaseLink";
+import HeaderAuth from "./HeaderAuth";
 import { LogoMark } from "./Icons";
 
 const links = [
@@ -26,10 +26,7 @@ export default function Header() {
           ))}
         </nav>
         <div className="header-actions">
-          <HeaderCaseLink />
-          <a href="#login" className="login-link">
-            Log in
-          </a>
+          <HeaderAuth />
           <Link href="/start" className="btn btn-dark">
             Book a consultation
           </Link>

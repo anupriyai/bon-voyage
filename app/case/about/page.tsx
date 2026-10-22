@@ -41,7 +41,7 @@ function Fact({ k, children }: { k: string; children: React.ReactNode }) {
 }
 
 export default function AboutPage() {
-  const { state, resetCase } = useCase();
+  const { state, deleteCase } = useCase();
   const router = useRouter();
   const i = state.intake;
   const dx = DIAGNOSES.find((d) => d.id === i.diagnosis);
@@ -103,13 +103,13 @@ export default function AboutPage() {
           type="button"
           className="link-btn"
           onClick={() => {
-            if (window.confirm("Start over? This clears the case saved in this browser.")) {
-              resetCase();
-              router.push("/start");
+            if (window.confirm("Delete this case from this browser? This can't be undone.")) {
+              deleteCase(state.id);
+              router.push("/account");
             }
           }}
         >
-          Start over
+          Delete this case
         </button>
         <Link href="/case/records" className="btn btn-primary">
           Next: add medical records

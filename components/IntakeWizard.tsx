@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -16,7 +15,6 @@ import {
   TIMELINES,
   type Intake,
 } from "@/lib/data";
-import { caseTitle } from "@/lib/engine";
 import { useCase } from "@/lib/store";
 import { MultiChoice, SingleChoice } from "./Choices";
 import FlowHeader from "./FlowHeader";
@@ -286,26 +284,42 @@ function StepFive({ i, set }: { i: Intake; set: SetIntake }) {
 }
 
 export default function IntakeWizard() {
-  const { state, ready, update, setIntake, loadSample, resetCase } = useCase();
+  const { state, ready, hasActive, session, update, setIntake, loadSample, startDraft, signIn } = useCase();
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [edit, setEdit] = useState(false);
+  const [mode, setMode] = useState<"pending" | "edit" | "new">("pending");
   const [error, setError] = useState<string | null>(null);
-  const [fresh, setFresh] = useState(false);
   const [inited, setInited] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
+  const edit = mode === "edit";
+
+  // Work out what this visit is: editing a finished case, or filling in a request.
+  useEffect(() => {
+    if (!ready || mode !== "pending") return;
+    const q = new URLSearchParams(window.location.search);
+    const wanted = Number(q.get("step"));
+    if (q.get("edit") === "1") {
+      if (!(hasActive && state.complete)) {
+        router.replace(session ? "/account" : "/login");
+        return;
+      }
+      setMode("edit");
+      if (wanted >= 1 && wanted <= TOTAL) setStep(wanted);
+      setInited(true);
+      return;
+    }
+    // Reuses an unfinished request if there is one, so answers are never lost.
+    startDraft();
+    setMode("new");
+  }, [ready, mode, hasActive, state.complete, session, router, startDraft]);
 
   useEffect(() => {
-    if (!ready || inited) return;
-    const q = new URLSearchParams(window.location.search);
-    const isEdit = q.get("edit") === "1";
-    setEdit(isEdit);
-    const wanted = Number(q.get("step"));
-    if (wanted >= 1 && wanted <= TOTAL) setStep(wanted);
-    else if (!state.complete) setStep(Math.min(Math.max(state.draftStep, 1), TOTAL));
-    if (isEdit) setFresh(true);
-    setInited(true);
-  }, [ready, inited, state.complete, state.draftStep]);
+    if (mode !== "new" || inited) return;
+    if (hasActive && !state.complete) {
+      setStep(Math.min(Math.max(state.draftStep, 1), TOTAL));
+      setInited(true);
+    }
+  }, [mode, inited, hasActive, state.complete, state.draftStep]);
 
   useEffect(() => {
     if (inited) heading.current?.focus({ preventScroll: true });
@@ -317,40 +331,6 @@ export default function IntakeWizard() {
         <FlowHeader />
         <main className="wiz container" aria-busy="true">
           <div className="wiz-skeleton" />
-        </main>
-      </>
-    );
-  }
-
-  // A finished case already exists: offer to continue it instead of silently overwriting it.
-  if (state.complete && !edit && !fresh) {
-    return (
-      <>
-        <FlowHeader exitLabel="Back to home" />
-        <main className="wiz container">
-          <div className="wiz-card resume">
-            <p className="eyebrow eyebrow-dark">You have a case in progress</p>
-            <h1 className="resume-title">{caseTitle(state.intake)}</h1>
-            <p className="q-help">
-              Pick up where you left off, or start a new request. Starting over clears the answers saved in this browser.
-            </p>
-            <div className="wiz-actions">
-              <button
-                type="button"
-                className="btn btn-outline-dark"
-                onClick={() => {
-                  resetCase();
-                  setStep(1);
-                  setFresh(true);
-                }}
-              >
-                Start a new request
-              </button>
-              <Link href="/case/about" className="btn btn-primary">
-                Open my case
-              </Link>
-            </div>
-          </div>
         </main>
       </>
     );
@@ -387,8 +367,10 @@ export default function IntakeWizard() {
         ...s.intake,
         managerName: s.intake.forWhom === "self" ? s.intake.patientName.trim() : s.intake.managerName.trim(),
         patientName: s.intake.patientName.trim(),
+        email: s.intake.email.trim(),
       },
     }));
+    signIn(intake.email);
     router.push(edit ? "/case/about" : "/case/records");
   };
 
@@ -452,7 +434,24 @@ export default function IntakeWizard() {
             {step < TOTAL ? "Continue" : edit ? "Save changes" : "Save and add records"}
           </button>
         </div>
-        <p className="wiz-foot">Your answers are saved as you go.</p>
+        <p className="wiz-foot">
+          Your answers are saved as you go.
+          {!edit && intake.patientName && (
+            <>
+              {" "}
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => {
+                  startDraft(undefined, true);
+                  setStep(1);
+                }}
+              >
+                Clear my answers
+              </button>
+            </>
+          )}
+        </p>
         {step === 1 && !edit && (
           <p className="wiz-foot">
             Just exploring?{" "}
