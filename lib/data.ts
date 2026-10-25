@@ -17,7 +17,10 @@ export interface Intake {
   forWhom: "self" | "family" | null;
   patientName: string;
   age: string;
+  /** The person filling in the form, relative to the patient ("Son"). */
   relationship: string;
+  /** The patient, relative to the person filling in the form ("father"). */
+  patientRelation: string;
   managerName: string;
   patientSeesAll: boolean;
   /** Contact details for the person filling in the form, used to follow up on this request. */
@@ -29,6 +32,8 @@ export interface Intake {
   stage: StageId | null;
   origin: OriginId | null;
   originOther: string;
+  /** Home city when the person named one, e.g. "Irbid". */
+  originCity: string;
   languages: LangId[];
   priorities: PriorityId[];
   budget: BudgetId | null;
@@ -45,6 +50,7 @@ export function emptyIntake(): Intake {
     patientName: "",
     age: "",
     relationship: "",
+    patientRelation: "",
     managerName: "",
     patientSeesAll: true,
     email: "",
@@ -55,6 +61,7 @@ export function emptyIntake(): Intake {
     stage: null,
     origin: null,
     originOther: "",
+    originCity: "",
     languages: [],
     priorities: [...DEFAULT_PRIORITIES],
     budget: null,
@@ -388,6 +395,27 @@ export const HOSPITALS: Hospital[] = [
       "German hospitals usually repeat scans older than 4 weeks ($680–1,400). Changes in the euro exchange rate can move the total by a few percent.",
   },
 ];
+
+/** The intake stores regions; the assistant talks about cities. */
+export const HOSPITAL_REGION: Record<HospitalId, DestId> = {
+  amman: "levant",
+  cairo: "levant",
+  istanbul: "turkey",
+  dubai: "gulf",
+  berlin: "europe",
+};
+
+export function hospitalsToRegions(ids: HospitalId[]): DestId[] {
+  if (ids.length === HOSPITALS.length) return DESTINATIONS.map((d) => d.id);
+  return [...new Set(ids.map((id) => HOSPITAL_REGION[id]))];
+}
+
+export function regionsToHospitals(regions: DestId[], origin: OriginId | null): HospitalId[] {
+  const near = origin ? ORIGIN_BY_ID[origin].nearHome : [];
+  return HOSPITALS.filter((h) => regions.includes(h.region) || (regions.includes("home") && near.includes(h.id))).map(
+    (h) => h.id,
+  );
+}
 
 export const HOSPITAL_BY_ID = Object.fromEntries(HOSPITALS.map((h) => [h.id, h])) as Record<HospitalId, Hospital>;
 

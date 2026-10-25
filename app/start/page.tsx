@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import IntakeWizard from "@/components/IntakeWizard";
+import Intake from "@/components/bv/Intake";
 
 export const metadata: Metadata = {
-  title: "Tell us about the situation — Bon Voyage",
+  title: "Your story — Bon Voyage",
 };
 
 export default function StartPage() {
-  return <IntakeWizard />;
+  return <Intake />;
 }

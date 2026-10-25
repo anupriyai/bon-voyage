@@ -37,6 +37,18 @@ export interface RecFile {
   size: number;
   at: string;
   docDate?: string;
+  /** What the assistant recognised the file as. */
+  found?: string;
+  /** Set once the assistant has read (and if needed translated) the file. */
+  translated?: boolean;
+}
+
+export interface RecordEntry {
+  files: RecFile[];
+  /** Physical samples: a medical courier collects them. */
+  courier?: boolean;
+  /** The assistant drafted a request (lab test, letter) for the coordinator to send. */
+  requested?: boolean;
 }
 
 export interface ChatMsg {
@@ -60,9 +72,13 @@ export interface CaseState {
   complete: boolean;
   createdAt: string | null;
   sample: boolean;
-  records: Record<string, { files: RecFile[]; courier?: boolean }>;
+  records: Record<string, RecordEntry>;
   unsorted: RecFile[];
   secondOpinionAt: string | null;
+  secondOpinionSkipped: boolean;
+  passportAdded: boolean;
+  /** Answers to the short health-history questions, instead of a document. */
+  health: Record<string, string>;
   costView: CostView;
   chosenId: HospitalId | null;
   chosenAt: string | null;
@@ -87,6 +103,9 @@ export function initialState(id = ""): CaseState {
     records: {},
     unsorted: [],
     secondOpinionAt: null,
+    secondOpinionSkipped: false,
+    passportAdded: false,
+    health: {},
     costView: "expected",
     chosenId: null,
     chosenAt: null,
@@ -108,6 +127,7 @@ function sampleState(id: string, email: string): CaseState {
     size,
     at: ago(daysAgo),
     docDate,
+    translated: true,
   });
   return {
     ...initialState(id),
@@ -121,6 +141,7 @@ function sampleState(id: string, email: string): CaseState {
       patientName: "Yousef Al-Masri",
       age: "68",
       relationship: "Son",
+      patientRelation: "father",
       managerName: "Omar",
       patientSeesAll: true,
       email,
@@ -131,6 +152,7 @@ function sampleState(id: string, email: string): CaseState {
       stage: "3",
       origin: "jordan",
       originOther: "",
+      originCity: "Irbid",
       languages: ["arabic"],
       priorities: [...DEFAULT_PRIORITIES],
       budget: "25-50",
@@ -164,11 +186,23 @@ export function coordinatorGreeting(name: string): string {
 /* ---------- Records helpers ---------- */
 
 export function isTranslated(file: RecFile, now: Date): boolean {
+  if (file.translated !== undefined) return file.translated;
   return new Date(file.at).getTime() + 2 * DAY <= now.getTime();
 }
 
 export function translationDaysLeft(file: RecFile, now: Date): number {
   return Math.max(1, Math.ceil((new Date(file.at).getTime() + 2 * DAY - now.getTime()) / DAY));
+}
+
+/** Health history can be two quick answers instead of a document. */
+export function isAnsweredInstead(itemId: string, state: CaseState): boolean {
+  return itemId.endsWith(".conditions") && Object.keys(state.health).length >= 2;
+}
+
+/** An item is covered once a file is in, a courier is booked, a request is drafted or it was answered. */
+export function itemHandled(itemId: string, state: CaseState): boolean {
+  const e = state.records[itemId];
+  return !!(e && (e.files.length > 0 || e.courier || e.requested)) || isAnsweredInstead(itemId, state);
 }
 
 export function recordProgress(state: CaseState, now: Date) {
@@ -177,8 +211,10 @@ export function recordProgress(state: CaseState, now: Date) {
   let translating = 0;
   let missing = 0;
   for (const r of items) {
-    const files = state.records[r.id]?.files ?? [];
-    if (files.length === 0) missing += 1;
+    const entry = state.records[r.id];
+    const files = entry?.files ?? [];
+    if (entry?.courier || entry?.requested || isAnsweredInstead(r.id, state)) ready += 1;
+    else if (files.length === 0) missing += 1;
     else if (files.every((f) => isTranslated(f, now))) ready += 1;
     else translating += 1;
   }
@@ -208,7 +244,7 @@ export function ownedBy(c: CaseState, email: string): boolean {
 export function resumePath(c: CaseState): string {
   if (c.planApprovedAt) return "/case/dashboard";
   if (c.chosenId) return "/case/plan";
-  if (c.secondOpinionAt) return "/case/options";
+  if (c.secondOpinionAt || c.secondOpinionSkipped) return "/case/options";
   if (Object.values(c.records).some((r) => r.files.length > 0)) return "/case/second-opinion";
   return "/case/records";
 }
