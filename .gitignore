@@ -34,3 +34,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# claude-mem (local only)
+*/**/CLAUDE.md
+.claude-mem/
+
+# Python tooling cache
+__pycache__/
+*.pyc

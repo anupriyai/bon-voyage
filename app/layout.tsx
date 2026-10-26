@@ -1,24 +1,19 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
-import "./globals.css";
-import "./flow.css";
-import { CaseProvider } from "@/lib/store";
+import { Source_Sans_3 } from "next/font/google";
+import "./bv.css";
+import { CurrencyProvider } from "@/shared/lib/currency";
+import { CaseProvider } from "@/domains/case/state/store";
 
-const display = Bricolage_Grotesque({
+const source = Source_Sans_3({
   subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["600", "700", "800"],
-});
-
-const body = Hanken_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-body",
+  variable: "--font-source",
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
-  title: "Bon Voyage — Cross-border care coordination",
+  title: "Bon Voyage — Your care journey, connected",
   description:
-    "Bon Voyage helps patients and families find trusted specialists abroad, compare real costs, and plan every step of treatment and recovery in one place.",
+    "Explore care abroad with an AI-guided plan shaped around you, from understanding your options to coordinating travel, with a named coordinator alongside.",
 };
 
 export default function RootLayout({
@@ -27,10 +22,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" className={`${display.variable} ${body.variable}`}>
+    <html lang="en" data-scroll-behavior="smooth" className={source.variable}>
       {/* Browser extensions (e.g. Grammarly) add attributes to <body> before React hydrates. */}
       <body suppressHydrationWarning>
-        <CaseProvider>{children}</CaseProvider>
+        <CurrencyProvider>
+          <CaseProvider>{children}</CaseProvider>
+        </CurrencyProvider>
       </body>
     </html>
   );
