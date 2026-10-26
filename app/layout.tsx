@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Source_Sans_3 } from "next/font/google";
 import "./bv.css";
-import { CurrencyProvider } from "@/lib/currency";
-import { CaseProvider } from "@/lib/store";
+import { CurrencyProvider } from "@/shared/lib/currency";
+import { CaseProvider } from "@/domains/case/state/store";
 
 const source = Source_Sans_3({
   subsets: ["latin"],

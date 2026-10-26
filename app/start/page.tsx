@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Intake from "@/components/bv/Intake";
+import Intake from "@/domains/case/components/Intake";
 
 export const metadata: Metadata = {
   title: "Your story — Bon Voyage",

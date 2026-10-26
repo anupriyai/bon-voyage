@@ -26,22 +26,35 @@ Open http://localhost:3000. "Log in → Try a sample case" jumps straight into a
 
 Everything is saved in the browser (`localStorage`). Providers, prices and visa rules are sample data.
 
-## The assistant: scripted now, Claude when you're ready
+## Organization
 
-All assistant behaviour lives in `lib/assistant.ts` and runs locally, so the demo needs no API key and never fails on stage.
+See [CLAUDE.md](CLAUDE.md) for the domain map, dependency rules and working agreements.
 
-`app/api/assistant/route.ts` is the switch. When `ANTHROPIC_API_KEY` is set, two tasks go to Claude (`claude-opus-5-5`, structured JSON output):
+- `app/`: thin Next.js routes, metadata and site-wide CSS.
+- `domains/`: account, case, marketing, records, pricing and travel capabilities.
+- `shared/`: UI and infrastructure used across domains.
+- `docs/`: design specifications and implementation plans.
+- `public/`: static assets.
+- `tooling/`: launcher and database/test configuration.
+- `.vscode/`: editor settings that hide generated files and dependency folders.
 
-- **extract**: read the intake story into case details, each with the words it came from
-- **change**: classify a plan-change request
+Package manifests, Next/TypeScript configuration, environment files and project instructions stay at root for standard tool discovery. TypeScript cache lives under `.next/cache/`.
 
-Without a key, or if Claude errors or declines, the route answers with the scripted version in the same shape. To try it:
+Use `npm run launch` for the full local stack, `npm run launch:status` to inspect it, and `npm run launch:stop` to stop it. Database and test npm commands load their configs from `tooling/`.
+
+The nested `bon-voyage/` directory is a legacy clone and is not part of the active app.
+
+## Assistant
+
+Scripted behavior lives in `domains/case/model/assistant.ts`. The API route delegates to `domains/case/assistantHandler.ts`, using the provider port in `shared/lib/ai`.
+
+AI is opt-in: set `AI_PROVIDER` explicitly to `ollama` or `claude`, along with the corresponding settings listed in `.env.example`. With no provider configured, or when a model fails, the assistant uses scripted answers. The browser client is `domains/case/assistantClient.ts`.
+
+## Validation
 
 ```bash
-echo "ANTHROPIC_API_KEY=sk-ant-..." > .env.local
-npm run dev
+npm test
+npm run build
 ```
 
-The intake's side panel says whether the story was "Read by Claude" or by the on-device demo assistant.
-
-Good next candidates for Claude are the option explanations (`explainOption`) and coordinator replies, both currently scripted.
+Database tests skip unless the test database settings are configured.

@@ -1,4 +1,4 @@
-import Home from "@/components/bv/Home";
+import Home from "@/domains/marketing/Home";
 
 export default function Page() {
   return <Home />;
