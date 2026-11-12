@@ -59,7 +59,7 @@ export const PLACEHOLDERS = [
   "e.g. We’re comparing hospitals in Amman, Istanbul and Berlin…",
 ];
 
-const ORIGIN_KEYS: Record<Exclude<OriginId, "other">, string[]> = {
+const ORIGIN_KEYS: Record<string, string[]> = {
   jordan: ["irbid", "amman", "zarqa", "jordan"],
   saudi: ["riyadh", "jeddah", "dammam", "saudi arabia", "saudi"],
   uae: ["abu dhabi", "sharjah", "uae", "emirates"],

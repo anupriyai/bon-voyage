@@ -46,7 +46,7 @@ shared/
 tooling/   drizzle.config.ts, vitest.config.mts, launch.py
 ```
 
-Still to come: `domains/travel/duffelProvider.ts`, `app/api/travel/{search,book}`, `app/api/price-watch/run`, the travel and pricing tables.
+The search, booking, price-watch, audit-anchor and Stays routes and tables now exist. Current acceptance gates and test evidence are tracked in `implementation-roadmap.md` and `implementation-handoff.md`.
 
 ## 1. AI port (`shared/lib/ai`) — built
 
@@ -76,7 +76,7 @@ Still to come: `domains/travel/duffelProvider.ts`, `app/api/travel/{search,book}
 | `case_clinical` | yes; all sealed columns redacted | AES-256-GCM ciphertext, iv, tag, key version |
 | `travelers` | yes; names and birth date redacted | `needs` (e.g. wheelchair) |
 
-Later phases add `searches`, `fare_snapshots`, `price_watches`, `price_alerts`, `bookings` and a rate-limit row. Ids from Better Auth are `text`.
+`searches`, `fare_snapshots`, `price_watches`, `price_alerts`, `bookings`, leases, digest records, Stays searches/quotes and rate-limit rows are implemented. Ids from Better Auth are `text`.
 
 ### How the audit works
 
@@ -99,7 +99,7 @@ AES-256-GCM, random 12-byte IV, 16-byte tag (shorter tags refused), associated d
 - Next 16 renamed `middleware.ts` to `proxy.ts` (Node runtime only). Its docs advise against using it for authorization, so each route checks the session itself (`actorFrom(headers)`).
 - Verified end to end locally: link issued, verified, session created, account creation audited as `auth` with the email redacted.
 
-## 3. Flights through Duffel (`domains/travel`) — mock built, Duffel adapter next
+## 3. Flights through Duffel (`domains/travel`) — sample provider, test adapter and durable booking
 
 - **Rate limit:** live search is about **10 requests per 60 s per organisation**, shared by every user and the price-watch job. This drives the search design in §4. One app-wide limiter keeps its state in a Postgres row, updated from the `ratelimit-*` response headers, with a reserve for interactive searches. Ask Duffel for a higher quota before launch.
 - **Search:** one offer request with two slices (round trip), `max_connections: 1`, `supplier_timeout: 10000`, then list offers sorted by total. Map `holdable = !requires_instant_payment`, and carry `conditions.refund_before_departure`, `change_before_departure` and `void_window_ends_at` onto `Fare`.
@@ -112,7 +112,7 @@ AES-256-GCM, random 12-byte IV, 16-byte tag (shorter tags refused), associated d
 - **Fees** (part of the trip's comparable cost): $3 per order, 1% Managed Content, $2 per paid extra, 2% FX; fares come in the organisation's billing currency (mostly GBP).
 - **Going live:** billing card plus a balance top-up; Managed Content tickets from UK/US/FR/AU/IE points of sale only; get legal advice on seller-of-travel rules and on selling those fares to residents of Jordan, Saudi Arabia, UAE, Lebanon and Egypt.
 
-## 4. Price optimisation (`domains/pricing`) — model built
+## 4. Price optimisation (`domains/pricing`) — models, UI and worker
 
 ### Search within the rate limit (`search.ts`, `model/routeOptions.ts`)
 
@@ -154,7 +154,7 @@ Starting values; tune after user interviews.
 
 The price calendar (`priceCalendar(validTrips, currency)`) shows the cheapest valid comparable total per departure day, one currency only. The UI never predicts fares or says "buy now".
 
-### Price watch (`priceWatch.ts`, route to come)
+### Price watch (model and protected worker implemented)
 
 - A drop is ≥ 5% **or** ≥ $30 (in the watch's currency) below the **baseline**: the first price seen, then the price of each alert sent. The lowest price seen is kept separately for display, so a slow decline still alerts once it adds up. Compared in whole cents.
 - Compare like with like: round trip against round trip, separate tickets against separate tickets.
@@ -176,7 +176,7 @@ The price calendar (`priceCalendar(validTrips, currency)`) shows the cheapest va
 | Database down | Writes fail closed; read-only pages still render sample data |
 | Write with no actor | The trigger refuses it; a bug to fix |
 
-## Testing (111 tests, `npm test`)
+## Testing and current verification
 
 - Pricing model: date windows (boundaries, impossible dates, transit days), hard rules with real time-zone offsets, fragile-only limits, overnight legs, scores, currencies, explanations, fees, ground at both ends, widen planning, drops and baselines, the calendar.
 - Search: request counts per strategy, failure counting, concurrency cap, end to end with the mock and ranking.
@@ -186,17 +186,23 @@ The price calendar (`priceCalendar(validTrips, currency)`) shows the cheapest va
 
 ## Build order
 
-The phase-by-phase instructions, with what each phase needs from you, are in [implementation-roadmap.md](implementation-roadmap.md). The table below is the original outline.
+The canonical phase numbering and evidence are in [implementation-roadmap.md](implementation-roadmap.md). Local code now reaches phase 10: saved cases; sample/test flight search; durable flight booking/holds/payments and webhooks; watches/alerts/digests; audit-anchor and production-email adapters; and Stays search/rates/quotes/booking with separate property fees.
 
-| Phase | Delivers | Status / needs |
-|---|---|---|
-| 1 | AI port | Done; Qwen verified live |
-| 2 | Postgres 18, Drizzle, audit, encryption, Better Auth | Done; sign-in verified live. Anchoring job still to build |
-| 3 | Duffel adapter, search route wired into Search | Needs a Duffel **read-write test** token |
-| 4 | Pricing | Model done; needs phase 3 for real fares, plus the alternates list review |
-| 5 | Booking: reprice, hold or instant, reconcile, assistance task | After 3 |
-| 6 | Price watch, rate-limit row, in-app alerts, email digest | Resend account |
-| 7 | Duffel Stays | Stays access approved |
+Phase 9 is not complete. Live booking is hard-blocked. Real Duffel/Resend accounts, hosted infrastructure, external immutable anchors, legal/operational decisions, verified fees, real fixtures and browser acceptance remain open. Read [implementation-handoff.md](implementation-handoff.md) for the exact next work and [production-readiness.md](production-readiness.md) for deployment/recovery gates.
+
+### Implementation details (2026-11-03)
+
+Case state is encrypted and ownership/revision scoped. Autosave serializes writes; conflicts require reload; remotely deleted saved cases cannot be recreated by a stale browser working copy. Only validated case, flight and stay fields are persisted. Sample cases never create an authenticated session.
+
+The Duffel SDK is confined to `domains/travel/duffelProvider.ts`. Airport-local times become explicit offsets using IANA zones; ambiguous times fail closed. Search caches expire at the earlier of 15 minutes or offer expiry. Repricing always fetches fresh. The limiter consumes quota per actual provider HTTP call and updates from response headers, retaining four interactive requests from background use. Fixed FX rates are planning assumptions, labelled in the UI; settlement remains in native fare currency. Actual provider fees still need phase 9 configuration/confirmation.
+
+Booking writes are preceded by a unique durable claim, with a request HMAC rather than stored documents. Changed prices or itineraries require a new review. A fast, documented 503 can retry once with the same correlation ID; 200-without-resource, 202, 500/502, timeouts and transport failures stay in checking and never resubmit. Holds have a separate atomic payment claim; definitely unprocessed failures can release that claim, while ambiguous outcomes remain protected. Orders/payments are reconciled through provider reads and signed, replay-bounded, transactionally deduplicated webhooks. Late events cannot undo paid or cancelled states. Manual cancellations and airline/accommodation assistance create coordinator tasks.
+
+Watches start from the lowest suitable already-observed fare for the watched route/dates, avoiding false alerts for alternatives that were already cheaper. A leased, slot-idempotent worker rechecks the same return trip, applies the patient profile, and records threshold drops. Changing the case/travel context stops its prior watch. Daily email summaries cover the previous completed UTC day, use a frozen payload and stable Resend key, and include no health details. Pending messages older than the safe idempotency window require manual reconciliation.
+
+The audit job verifies the chain before posting a non-personal head record to an explicitly configured HTTPS append-only gateway. No immutable destination has been provisioned; external immutability, restores and hosted key rotation are operational acceptance gates. Production magic links use Resend; development links remain console-only. Auth request limits are atomic database counters keyed by HMAC rather than raw IPs. Vercel Fluid compute attaches the shared pool, and the readiness probe can check actual pooled transaction behavior without changing application rows.
+
+Stays has separate result, rate and quote IDs. Unknown accessibility is excluded when mobility access is required. Search/radius/night limits are checked, complete rates are retrieved before quoting, and a fresh quote revalidates the selected property, dates, required mobility access and price before a durable booking claim. Property fees retain their separate currency and null means unknown. The UI selects lodging into the plan and keeps unknown fees visibly separate. Editing stay search details clears old results, quotes, consent and plan selection; responses from a discarded search or case/travel context cannot restore them. Stays reconciliation never invents a quote-ID list filter: it uses a known booking ID, verified attempt metadata with bounded pagination, or the signed creation webhook. The test adapter uses the SDK-verified `accessibility_mobility` amenity and `accommodation_special_requests` field; a real account/fixture run is still required.
 
 ## Environment
 

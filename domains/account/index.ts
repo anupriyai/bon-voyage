@@ -1,2 +1,2 @@
 export { actorFrom, auth } from "@/domains/account/auth";
-export { ROLES, account, session, user, verification, type Role } from "@/domains/account/db";
+export { ROLES, account, session, user, verification, passkey, accountProfile, consentReceipt, dataRightsRequest, jurisdictionRelease, type Role } from "@/domains/account/db";

@@ -92,7 +92,7 @@ function buildRoute(origin: OriginInfo, h: Hospital, sameCountry: boolean): Rout
       hours,
       main: round10(2 * (140 + 0.28 * km)),
       local: 300,
-      label: `about ${fmtHours(hours)} flight from your home city`,
+      label: "Placeholder flight route; actual journey to confirm",
     };
   }
   const straight = haversineKm(origin.lat, origin.lon, h.lat, h.lon);
@@ -257,8 +257,7 @@ export function fmtAppt(o: OptionResult): string {
 }
 
 export function routeLabel(o: OptionResult): string {
-  const visa = o.visa.sameCountry ? "no visa" : o.visa.needed ? "visa needed" : "no visa needed";
-  return `${o.route.label} · ${visa}`;
+  return `${o.route.label} · entry requirements to confirm`;
 }
 
 /* =====================================================================
@@ -305,13 +304,14 @@ export interface Plan {
   home: Date;
 }
 
-export function buildPlan(intake: Intake, o: OptionResult, chosenAt: string): Plan {
+export function buildPlan(intake: Intake, o: OptionResult, chosenAt: string, flightDates?: { appointment: string; out: string; back: string }): Plan {
   const base = startOfDay(new Date(chosenAt));
   const A = Math.max(o.apptDays, 6);
-  const first = addDays(base, A);
-  const travel = addDays(first, -1);
-  const home = addDays(first, o.stayDays);
-  const treatment = addDays(first, 6);
+  const localDay = (day: string) => startOfDay(new Date(`${day}T12:00:00`));
+  const first = flightDates ? localDay(flightDates.appointment) : addDays(base, A);
+  const travel = flightDates ? localDay(flightDates.out) : addDays(first, -1);
+  const home = flightDates ? localDay(flightDates.back) : addDays(first, o.stayDays);
+  const treatment = flightDates ? first : addDays(first, 6);
   const intl = o.route.mode === "flight";
   const gap = o.lang.gap;
   const drive = o.route.mode === "drive";
@@ -612,12 +612,12 @@ export function pendingChange(intake: Intake, o: OptionResult): ChangeRequest {
     amount: o.hospital.scanCost,
     why: `${o.specialist.name}'s team wants a fresh scan to plan ${op}. Their rule is scans within 4 weeks of treatment, so an older scan may need repeating.`,
   };
-  if (origin.scanAtHome < o.hospital.scanCost * 0.8 && !o.visa.sameCountry) {
+  if (origin.scanAtHome > 0 && origin.scanAtHome < o.hospital.scanCost * 0.8 && !o.visa.sameCountry) {
     req.cheaper = {
       amount: origin.scanAtHome,
       text: `Have the scan at home before travel instead — about ${usd(origin.scanAtHome)}, and the team has agreed to accept it.`,
     };
-  } else if (origin.scanAtHome < o.hospital.scanCost * 0.8) {
+  } else if (origin.scanAtHome > 0 && origin.scanAtHome < o.hospital.scanCost * 0.8) {
     req.cheaper = {
       amount: origin.scanAtHome,
       text: `Have the scan near home before travel instead — about ${usd(origin.scanAtHome)}, and the team has agreed to accept it.`,
@@ -649,4 +649,19 @@ export function managedLine(intake: Intake): string {
   const mgr = firstName(intake.managerName) || "a family member";
   const sees = intake.patientSeesAll ? `${patient} can see everything` : `${patient} sees what you share`;
   return `Managed by ${mgr}${rel} · ${sees}`;
+}
+
+/** Selected USD sample fare plus fees/extra transfers replaces the baseline flight estimate. */
+export function applyFlightCost(option: OptionResult, amount: number): OptionResult {
+  if (option.route.mode !== "flight") return option;
+  const total = amount + option.route.local;
+  const lines = option.lines.map((line) => line.id === "travel" ? { ...line, label: "Selected flights and local transport", low: total, expected: total, high: total } : line);
+  const sum = (view: CostView) => lines.reduce((n, line) => n + line[view], 0);
+  return { ...option, route: { ...option.route, main: amount }, lines, totals: { low: sum("low"), expected: sum("expected"), high: sum("high") } };
+}
+
+export function applyStayCost(option: OptionResult, amount: number): OptionResult {
+  const lines = option.lines.map((line) => line.id === "accommodation" ? { ...line, label: "Selected stay (additional fees may apply)", low: amount, expected: amount, high: amount } : line);
+  const sum = (view: CostView) => lines.reduce((n, line) => n + line[view], 0);
+  return { ...option, lines, totals: { low: sum("low"), expected: sum("expected"), high: sum("high") } };
 }

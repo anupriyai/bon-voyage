@@ -9,8 +9,9 @@ export default defineConfig({
   // Same "@/…" root alias as tsconfig.json.
   resolve: { alias: { "@/": root } },
   test: {
-    // .env.local supplies TEST_DATABASE_URL and friends; database tests skip without them.
-    env: loadEnv("test", root, ""),
+    // The disposable database runner supplies all settings and must never read development secrets.
+    // Otherwise .env.local supplies TEST_DATABASE_URL; database tests skip without those settings.
+    env: process.env.BON_VOYAGE_ISOLATED_TESTS === "1" ? {} : loadEnv("test", root, ""),
     // bon-voyage/ is an untracked older clone of this repo.
     exclude: ["**/node_modules/**", "bon-voyage/**"],
   },

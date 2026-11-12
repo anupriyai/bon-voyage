@@ -1,9 +1,10 @@
 // Static catalogue for the prototype. Every hospital, specialist, price and rule below is
 // illustrative sample data — nothing here is a real quote, credential or visa rule.
+import { COUNTRIES } from "@/domains/providers";
 
 export type DxId = "colon" | "breast" | "prostate" | "lung" | "other";
 export type StageId = "1" | "2" | "3" | "4" | "unsure";
-export type OriginId = "jordan" | "saudi" | "uae" | "lebanon" | "egypt" | "uk" | "nz" | "other";
+export type OriginId = "jordan" | "saudi" | "uae" | "lebanon" | "egypt" | "uk" | "nz" | "other" | (string & {});
 export type LangId = "arabic" | "english" | "french" | "turkish" | "german";
 export type PriorityId = "experience" | "language" | "cost" | "family" | "speed";
 export type BudgetId = "u25" | "25-50" | "50-100" | "o100" | "unsure";
@@ -113,15 +114,25 @@ export interface OriginInfo {
   scanAtHome: number;
 }
 
-export const ORIGINS: OriginInfo[] = [
+const SAMPLE_ORIGINS: OriginInfo[] = [
   { id: "jordan", label: "Jordan", city: "Irbid", lat: 32.55, lon: 35.85, driveKmh: 55, country: "jordan", nearHome: ["amman"], scanAtHome: 240 },
   { id: "saudi", label: "Saudi Arabia", city: "Riyadh", lat: 24.71, lon: 46.68, driveKmh: 90, country: null, nearHome: ["dubai"], scanAtHome: 480 },
-  { id: "uae", label: "UAE", city: "Abu Dhabi", lat: 24.45, lon: 54.38, driveKmh: 100, country: "uae", nearHome: ["dubai"], scanAtHome: 520 },
+  { id: "uae", label: "United Arab Emirates", city: "Abu Dhabi", lat: 24.45, lon: 54.38, driveKmh: 100, country: "uae", nearHome: ["dubai"], scanAtHome: 520 },
   { id: "lebanon", label: "Lebanon", city: "Beirut", lat: 33.89, lon: 35.5, driveKmh: 60, country: null, nearHome: ["amman"], scanAtHome: 300 },
   { id: "egypt", label: "Egypt", city: "Alexandria", lat: 31.2, lon: 29.92, driveKmh: 80, country: "egypt", nearHome: ["cairo"], scanAtHome: 180 },
   { id: "uk", label: "United Kingdom", city: "London", lat: 51.5, lon: -0.12, driveKmh: 80, country: null, nearHome: [], scanAtHome: 550 },
   { id: "nz", label: "New Zealand", city: "Auckland", lat: -36.85, lon: 174.76, driveKmh: 80, country: null, nearHome: [], scanAtHome: 900 },
   { id: "other", label: "Another country", city: "your home city", lat: null, lon: null, driveKmh: 80, country: null, nearHome: [], scanAtHome: 450 },
+];
+const LEGACY_COUNTRY_CODES = new Set(["JO", "SA", "AE", "LB", "EG", "GB", "NZ"]);
+const COUNTRY_DISPLAY_NAMES: Record<string, string> = { US: "United States" };
+export const ORIGINS: OriginInfo[] = [
+  ...SAMPLE_ORIGINS.filter((origin) => origin.id !== "other"),
+  ...COUNTRIES.filter((country) => !LEGACY_COUNTRY_CODES.has(country.code)).map((country) => ({
+    id: country.code, label: COUNTRY_DISPLAY_NAMES[country.code] ?? country.name, city: "", lat: null, lon: null,
+    driveKmh: 80, country: null, nearHome: [], scanAtHome: 0,
+  })),
+  SAMPLE_ORIGINS.find((origin) => origin.id === "other")!,
 ];
 
 export const ORIGIN_BY_ID = Object.fromEntries(ORIGINS.map((o) => [o.id, o])) as Record<OriginId, OriginInfo>;

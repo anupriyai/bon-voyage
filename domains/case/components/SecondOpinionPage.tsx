@@ -16,7 +16,7 @@ const SEND_STEPS: [string, string][] = [
   ["Plain-language reports", "Each writes back separately"],
   ["Report and video call", "With the panel lead, interpreter included"],
 ];
-const COLORS = ["#F3AE78", "#6FD0C3", "#DCE6E2"];
+const COLORS = ["#F3AE78", "#6FD0C3", "#c9d9d3"];
 
 export default function SecondOpinionPage() {
   const { state, patch } = useCase();
@@ -91,10 +91,10 @@ export default function SecondOpinionPage() {
             <div>
               <div style={{ marginTop: 26, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
                 <button type="button" className="tile bv-tile bv-in" onClick={() => setStep(1)} style={{ position: "relative", gap: 6, padding: 22, minHeight: 170, borderRadius: 22, borderColor: "rgba(111,208,195,0.6)", background: "rgba(111,208,195,0.08)" }}>
-                  <span style={{ position: "absolute", top: -11, right: 16, fontSize: 12, fontWeight: 800, padding: "2px 10px", borderRadius: 999, background: "var(--mint)", color: "var(--navy)" }}>AI suggests</span>
-                  <span style={{ fontSize: 22, fontWeight: 800 }}>Yes, request it</span>
+                  <span style={{ position: "absolute", top: -11, right: 16, fontSize: 12, fontWeight: 500, padding: "2px 10px", borderRadius: 999, background: "var(--mint)", color: "var(--navy)" }}>AI suggests</span>
+                  <span style={{ fontSize: 22, fontWeight: 500 }}>Yes, request it</span>
                   <span className="sub" style={{ fontSize: 15 }}>Panel of three specialists · report in about 5 working days</span>
-                  <span style={{ marginTop: "auto", fontSize: 20, fontWeight: 800 }}>{fee}</span>
+                  <span style={{ marginTop: "auto", fontSize: 20, fontWeight: 500 }}>{fee}</span>
                 </button>
                 <button
                   type="button"
@@ -105,9 +105,9 @@ export default function SecondOpinionPage() {
                   }}
                   style={{ gap: 6, padding: 22, minHeight: 170, borderRadius: 22, animationDelay: ".08s" }}
                 >
-                  <span style={{ fontSize: 22, fontWeight: 800 }}>Not now</span>
+                  <span style={{ fontSize: 22, fontWeight: 500 }}>Not now</span>
                   <span className="sub" style={{ fontSize: 15 }}>Go straight to comparing hospitals. You can request it later from your plan.</span>
-                  <span style={{ marginTop: "auto", fontSize: 15, fontWeight: 700, color: "var(--mint-soft)" }}>Skip for now →</span>
+                  <span style={{ marginTop: "auto", fontSize: 15, fontWeight: 500, color: "var(--teal-ink)" }}>Skip for now →</span>
                 </button>
               </div>
               <p style={{ margin: "16px 0 0", fontSize: 15, color: "var(--muted)", display: "flex", gap: 8 }}>
@@ -122,8 +122,8 @@ export default function SecondOpinionPage() {
               {panel.map((p, k) => (
                 <div key={p.name} className="bv-flip card-d" style={{ padding: 20, borderRadius: 22, animationDelay: `${0.15 + k * 0.15}s` }}>
                   <span className="avatar" aria-hidden="true" style={{ width: 56, height: 56, background: p.color }}>{p.initials}</span>
-                  <div style={{ marginTop: 14, fontWeight: 800, fontSize: 18 }}>{p.name}</div>
-                  <div style={{ fontSize: 15, color: "#dce6e2" }}>{p.role}</div>
+                  <div style={{ marginTop: 14, fontWeight: 500, fontSize: 18 }}>{p.name}</div>
+                  <div style={{ fontSize: 15, color: "var(--ink-soft)" }}>{p.role}</div>
                   <div style={{ fontSize: 14, color: "var(--muted)" }}>{p.org}</div>
                   <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap" }}>
                     <span className="pill pill-ok" style={{ fontSize: 12, padding: "3px 9px" }}>{p.years} years</span>
@@ -141,11 +141,11 @@ export default function SecondOpinionPage() {
                   <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 12 }}>
                     {checks.map((c, k) => (
                       <li key={c.title} className="bv-in" style={{ display: "flex", gap: 12, alignItems: "flex-start", animationDelay: `${k * 0.1}s` }}>
-                        <span className="avatar" aria-hidden="true" style={{ width: 28, height: 28, fontSize: 14, background: c.ok ? "var(--teal)" : "rgba(243,174,120,0.2)", color: c.ok ? "#fff" : "var(--sand-soft)" }}>
+                        <span className="avatar" aria-hidden="true" style={{ width: 28, height: 28, fontSize: 14, background: c.ok ? "var(--teal)" : "rgba(243,174,120,0.2)", color: c.ok ? "#fff" : "var(--rust)" }}>
                           {c.ok ? <Check size={14} /> : "!"}
                         </span>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700 }}>{c.title}</div>
+                          <div style={{ fontWeight: 500 }}>{c.title}</div>
                           <div style={{ fontSize: 14, color: "var(--muted)" }}>{c.note}</div>
                         </div>
                       </li>
@@ -160,21 +160,21 @@ export default function SecondOpinionPage() {
                 </ol>
               )}
               {sent && (
-                <div className="bv-in" style={{ marginTop: 18, display: "inline-flex", alignItems: "center", gap: 14, padding: "14px 20px 14px 14px", borderRadius: 999, background: "var(--ivory)", color: "var(--navy)" }}>
+                <div className="bv-in" style={{ marginTop: 18, display: "inline-flex", alignItems: "center", gap: 14, padding: "14px 20px 14px 14px", borderRadius: 999, background: "var(--surface-raised)", color: "var(--navy)" }}>
                   <span aria-hidden="true" style={{ position: "relative", display: "inline-flex", width: 40, height: 40 }}>
                     <span className="bv-burst" style={{ position: "absolute", inset: 0, borderRadius: 999, background: "rgba(25,124,120,0.35)" }} />
                     <span className="check-done bv-pop" style={{ position: "relative", width: 40, height: 40 }}>
                       <Check size={18} style={{ color: "#fff" }} />
                     </span>
                   </span>
-                  <span style={{ fontWeight: 700 }}>Sent. Report expected by {expected} (sample).</span>
+                  <span style={{ fontWeight: 500 }}>Sent. Report expected by {expected} (sample).</span>
                 </div>
               )}
             </div>
           )}
 
           {step === 3 && (
-            <p className="card-d" style={{ margin: "26px 0 0", maxWidth: 600, color: "#dce6e2" }}>
+            <p className="card-d" style={{ margin: "26px 0 0", maxWidth: 600, color: "var(--ink-soft)" }}>
               I’ve noted that you skipped it. You’ll find “Request a second opinion” here if you change your mind.
             </p>
           )}
@@ -225,7 +225,7 @@ export default function SecondOpinionPage() {
           {[["Panel fee (sample)", fee], ["File", files ? `${files} records${translated ? " · translated" : ""}` : "No files yet"], ["Report expected", step === 3 ? "—" : expected]].map(([a, b]) => (
             <div key={a} style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
               <dt style={{ color: "var(--muted)" }}>{a}</dt>
-              <dd style={{ margin: 0, fontWeight: 700 }}>{b}</dd>
+              <dd style={{ margin: 0, fontWeight: 500 }}>{b}</dd>
             </div>
           ))}
         </dl>
@@ -237,10 +237,10 @@ export default function SecondOpinionPage() {
             return (
               <li key={title} style={{ display: "flex", gap: 12 }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 14, flex: "none" }}>
-                  <span aria-hidden="true" style={{ width: 14, height: 14, borderRadius: 999, transition: "background-color .3s ease", background: done ? "var(--mint)" : running ? "var(--sand)" : "transparent", border: done || running ? 0 : "2px solid rgba(247,244,236,0.3)", boxShadow: running ? "0 0 0 4px rgba(243,174,120,0.25)" : "none" }} />
-                  {k < 3 && <span aria-hidden="true" style={{ width: 2, flex: 1, minHeight: 14, background: done ? "var(--mint)" : "rgba(247,244,236,0.15)" }} />}
+                  <span aria-hidden="true" style={{ width: 14, height: 14, borderRadius: 999, transition: "background-color .3s ease", background: done ? "var(--mint)" : running ? "var(--sand)" : "transparent", border: done || running ? 0 : "2px solid rgba(20,45,59,0.3)", boxShadow: running ? "0 0 0 4px rgba(243,174,120,0.25)" : "none" }} />
+                  {k < 3 && <span aria-hidden="true" style={{ width: 2, flex: 1, minHeight: 14, background: done ? "var(--mint)" : "rgba(20,45,59,0.15)" }} />}
                 </div>
-                <div style={{ paddingBottom: 12, fontSize: 14, color: lit ? "var(--ivory)" : "var(--muted)" }}>{title}</div>
+                <div style={{ paddingBottom: 12, fontSize: 14, color: lit ? "var(--navy)" : "var(--muted)" }}>{title}</div>
               </li>
             );
           })}

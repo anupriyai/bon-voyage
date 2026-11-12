@@ -3,99 +3,66 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { authClient } from "@/domains/account/client";
 import { AssistantIdentity } from "@/shared/ui/Assistant";
-import { FlowBackdrop } from "@/domains/case";
-import { SimpleBar } from "@/domains/case";
+import { FlowBackdrop, SimpleBar, resumePath, useCase, safeReturnPath } from "@/domains/case";
 import { Arrow, Sparkle } from "@/shared/ui/Icons";
-import { resumePath, useCase } from "@/domains/case";
 
 export default function LoginPage() {
-  const { ready, session, login, loadSample, state } = useCase();
+  const { ready, session, loadSample, state } = useCase();
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [notFound, setNotFound] = useState(false);
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [sample, setSample] = useState(false);
-
-  const nextParam = () => {
-    const n = new URLSearchParams(window.location.search).get("next");
-    // Only follow in-app paths.
-    return n && n.startsWith("/") && !n.startsWith("//") ? n : null;
-  };
-
+  const [careTrip, setCareTrip] = useState(false);
+  useEffect(() => {
+    setCareTrip(safeReturnPath(new URLSearchParams(window.location.search).get("next")).startsWith("/explore/trip"));
+  }, []);
   useEffect(() => {
     if (sample && state.sample) router.push(resumePath(state));
-    else if (ready && session && !sample) router.replace(nextParam() ?? "/account");
+    else if (ready && session && !sample) router.replace(safeReturnPath(new URLSearchParams(window.location.search).get("next")));
   }, [ready, session, router, sample, state]);
 
-  const submit = (e: React.FormEvent) => {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const found = login(email);
-    if (found.length === 0) {
-      setNotFound(true);
-      return;
-    }
-    // One saved case: go straight back into it. Several: pick from the list.
-    router.push(nextParam() ?? (found.length === 1 ? resumePath(found[0]) : "/account"));
-  };
-
+    setStatus("sending");
+    try {
+      const result = await authClient.signIn.magicLink({
+        email: email.trim(),
+        callbackURL: safeReturnPath(new URLSearchParams(window.location.search).get("next")),
+      });
+      setStatus(result.error ? "error" : "sent");
+    } catch { setStatus("error"); }
+  }
+  async function passkeySignIn() {
+    setStatus("sending");
+    try {
+      const result = await authClient.signIn.passkey();
+      if (result.error) { setStatus("error"); return; }
+      router.replace(safeReturnPath(new URLSearchParams(window.location.search).get("next")));
+    } catch { setStatus("error"); }
+  }
   return (
     <div className="flow">
-      <FlowBackdrop />
-      <SimpleBar />
+      <FlowBackdrop /><SimpleBar />
       <main className="wrap flow-main" style={{ justifyContent: "center" }}>
         <section className="flow-section" style={{ maxWidth: 620 }}>
           <AssistantIdentity status="Ready when you are" />
-          <h1 className="bv-in" style={{ margin: 0, fontSize: "clamp(34px, 3.8vw, 50px)", lineHeight: 1.06, letterSpacing: "-0.03em", fontWeight: 800 }}>
-            Welcome back.
-          </h1>
-          <p className="bv-in bv-d1" style={{ margin: "12px 0 0", fontSize: 18, color: "var(--muted)" }}>
-            Enter the email you used for your case and I’ll pick up exactly where you left off.
-          </p>
-          <form onSubmit={submit} noValidate className="bv-in bv-d2" style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 14 }}>
-            <label className="label">
-              Email
-              <input
-                className="field"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                required
-                value={email}
-                placeholder="name@example.com"
-                style={{ minHeight: 60, fontSize: 21 }}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setNotFound(false);
-                }}
-              />
+          <h1 style={{ margin: 0, fontSize: "clamp(34px, 3.8vw, 50px)", lineHeight: 1.06 }}>{careTrip ? "Keep your care trip together." : "Your journey, saved."}</h1>
+          <p style={{ fontSize: 18, color: "var(--muted)" }}>{careTrip ? "Sign in with a one-time link, then return to your trip to save it or record a sample care request. Signing in does not submit a request." : "Sign in with a one-time link to save your case and return on another device."}</p>
+          <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <label className="label">Email
+              <input className="field" type="email" autoComplete="email" required value={email} placeholder="name@example.com" onChange={(e) => { setEmail(e.target.value); setStatus("idle"); }} />
             </label>
-            {notFound && (
-              <p role="alert" className="bv-swap" style={{ margin: 0, color: "var(--sand-soft)" }}>
-                I couldn’t find a saved case for that email on this device. <Link href="/start">Start a new one</Link>.
-              </p>
-            )}
-            <div className="actions" style={{ marginTop: 6 }}>
-              <button type="submit" className="btn btn-primary bv-btn" aria-disabled={!email.trim()}>
-                Open my journey
-                <Arrow size={18} />
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline"
-                onClick={() => {
-                  setSample(true);
-                  loadSample();
-                }}
-              >
-                <Sparkle size={16} style={{ color: "var(--mint)" }} />
-                Try a sample case
-              </button>
+            {status === "sent" && <p role="status">If this address can receive a sign-in link, check its inbox.{process.env.NODE_ENV !== "production" && " Local development links are stored in the private .bon-voyage/sign-in-link.txt file."}</p>}
+            {status === "error" && <p role="alert">We couldn’t prepare your sign-in link. Please try again.</p>}
+            <div className="actions">
+              <button type="submit" className="btn btn-primary" disabled={status === "sending" || !email.trim()}>{status === "sending" ? "Preparing link…" : "Send sign-in link"}<Arrow size={18} /></button>
+              <button type="button" className="btn btn-outline" disabled={status === "sending"} onClick={() => void passkeySignIn()}>Sign in with a passkey</button>
+              {!careTrip && <button type="button" className="btn btn-outline" onClick={() => { setSample(true); loadSample(); }}><Sparkle size={16} />Try a sample case</button>}
             </div>
           </form>
-          <p className="bv-in bv-d3" style={{ margin: "24px 0 0", fontSize: 14, color: "var(--muted)" }}>
-            Prototype: sign-in is simulated and only finds cases saved in this browser. The live product emails a one-time sign-in link, with no
-            password to remember. New here? <Link href="/start">Tell us what’s happening</Link> and your case is saved as you go.
-          </p>
+          <p style={{ marginTop: 24, fontSize: 14, color: "var(--muted)" }}>{careTrip ? <><Link href="/explore">Keep browsing treatments</Link>. Your temporary plan stays on this device.</> : <>New here? <Link href="/start">Tell us what’s happening</Link>. Your unfinished answers stay on this device until you sign in.</>}</p>
         </section>
       </main>
     </div>

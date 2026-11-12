@@ -98,7 +98,7 @@ function finalOf(r: Found, A: Answers): Final {
     age: A.age ?? r.age?.v ?? null,
     dx: A.dx ?? r.dx?.v ?? null,
     stage: A.stage ?? r.stage?.v ?? null,
-    origin: o ? { v: o.id, city, label: `${city}, ${o.label}` } : r.origin ? { v: r.origin.v, city: r.origin.city, label: r.origin.label } : null,
+    origin: o ? { v: o.id, city, label: city ? `${city}, ${o.label}` : o.label } : r.origin ? { v: r.origin.v, city: r.origin.city, label: r.origin.label } : null,
     langs: A.langs ?? r.langs?.v ?? null,
     time: A.time ?? r.time?.v ?? null,
     budget: A.budget ?? r.budget?.v ?? null,
@@ -194,7 +194,7 @@ function qText(id: Qid, F: Final): [string, string] {
     who: ["Who is this care for?", "I’ll keep everything in one private case under their name."],
     diagnosis: [self ? "What did your doctor say it is?" : `What did the doctor say ${p} has?`, "Use the doctor’s words if you have them. Specialists confirm from the records."],
     stage: ["Do you know the stage?", "It’s fine if you’re not sure. It only widens the cost range a little."],
-    origin: [self ? "Where do you live now?" : `Where does ${p} live now?`, "I use this for travel times, entry rules and local scan prices."],
+    origin: [self ? "Where do you live now?" : `Where does ${p} live now?`, "Choose your country or territory and city. Travel time, entry rules and local costs still need confirmation."],
     languages: [self ? "Which languages are you comfortable with?" : `Which languages is ${p} comfortable with?`, "Choose all that apply. I’ll favour teams who speak them."],
     timeline: ["When would you like treatment to start?", "I’ll check how soon each hospital can see you."],
     budget: ["Roughly how much can you spend on medical costs?", "A rough range is enough. I flag options above it; I never hide them."],
@@ -204,7 +204,7 @@ function qText(id: Qid, F: Final): [string, string] {
       "Where would you consider going?",
       F.origin?.v === "jordan"
         ? `From ${F.origin.city}, Amman is a drive and Cairo is a short flight. I’ll compare whichever you pick.`
-        : "I’ll compare whichever you pick, with travel time and entry rules for each.",
+        : "I’ll compare sample destinations. Route and entry details need confirmation for your circumstances.",
     ],
     contact: [self ? "Where should I send your options?" : `Where should I send ${p}’s options?`, "This also creates your private case. We’ll email a secure sign-in link, so there’s no password to remember (prototype)."],
   };
@@ -221,7 +221,7 @@ function reducedMotion() {
 
 export default function Intake() {
   const router = useRouter();
-  const { ready, state, hasActive, startDraft, setIntake, patch, signIn } = useCase();
+  const { ready, state, hasActive, startDraft, setIntake, patch, session } = useCase();
   const { money, cur } = useCurrency();
 
   const [step, setStep] = useState<Step>("story");
@@ -237,6 +237,8 @@ export default function Intake() {
   const [editing, setEditing] = useState<Qid | null>(null);
   const [multi, setMulti] = useState<string[]>([]);
   const [rank, setRank] = useState<PriorityId[]>([]);
+  const [originChoice, setOriginChoice] = useState<OriginId | "">("");
+  const [originCity, setOriginCity] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; n: number } | null>(null);
   const [locked, setLocked] = useState(false);
@@ -308,6 +310,7 @@ export default function Intake() {
     setLocked(false);
     setMulti(id === "languages" ? (FF.langs ?? []) : id === "destinations" ? (FF.dest ?? []) : []);
     setRank(id === "priorities" ? (FF.prio ?? []) : []);
+    if (id === "origin") { setOriginChoice(FF.origin?.v ?? ""); setOriginCity(FF.origin?.city ?? ""); }
     setStep("ask");
   };
 
@@ -340,7 +343,7 @@ export default function Intake() {
       case "stage":
         return `Noted: ${labelOf(STAGES, FF.stage)?.toLowerCase()}.`;
       case "origin":
-        return `I’ll work out travel from ${FF.origin?.city ?? "there"}.`;
+        return `I’ll use ${FF.origin?.city ?? "your city"} as your starting point. Travel details need confirmation.`;
       case "languages":
         return `I’ll favour teams who speak ${(FF.langs ?? []).map((l) => labelOf(LANGUAGES, l)).join(" and ")}.`;
       case "timeline":
@@ -412,7 +415,6 @@ export default function Intake() {
     }
     const greet = { from: "coordinator" as const, at: new Date().toISOString(), text: coordinatorGreeting(F.mgr ?? (F.forWhom === "self" ? F.name ?? "" : "")) };
     patch({ complete: true, createdAt: new Date().toISOString(), draftStep: 5, chat: [greet] });
-    signIn(F.email);
     setStep("build");
     setBuild(0);
     const tick = (n: number) => {
@@ -514,7 +516,7 @@ export default function Intake() {
     ? [
         [`Matched ${buildModel.m.options.length} partner hospitals with ${dxSurgeons}`, buildModel.m.options.map((o) => o.hospital.city).join(" · ")],
         [`Estimated all-in costs in ${cur.code}`, `Expected totals from ${money(buildModel.lo)} to ${money(buildModel.hi)}`],
-        [`Checked travel and entry from ${F.origin?.city ?? origin.city}`, buildModel.m.options.map((o) => `${o.hospital.city}: ${o.route.mode === "drive" ? "drive" : "flight"}${o.visa.needed ? ", visa" : ""}`).join(" · ") + " (sample rules)"],
+        [`Illustrated sample travel from ${F.origin?.city ?? origin.city}`, buildModel.m.options.map((o) => `${o.hospital.city}: ${o.route.mode === "drive" ? "sample drive" : "sample flight"}`).join(" · ") + " · actual route and entry requirements to confirm"],
         ["Scored every option by your priorities", buildModel.within.length ? `${buildModel.within.length} within your budget, led by ${buildModel.within.slice(0, 2).map((o) => o.hospital.city).join(" and ")}` : `Best fit: ${buildModel.m.options[0]?.hospital.city}`],
         ["Built your records checklist", `${buildModel.records} items, starting with scans and the biopsy report`],
         ["Introduced your coordinator", `${COORDINATOR.name} · Arabic and English · replies within 2 hours`],
@@ -540,22 +542,20 @@ export default function Intake() {
     options = single(INSURANCE, F.pay, "pay");
     optional = true;
   }
-  if (currentQ === "origin")
-    options = ORIGINS.filter((o) => o.id !== "other").map((o) => ({
-      id: o.id,
-      label: o.label,
-      sub: o.city,
-      on: F.origin?.v === o.id,
-      pick: () => answer("origin", { origin: o.id, originCity: o.city }),
-    }));
+  if (currentQ === "origin") {
+    needsContinue = true;
+    onContinue = () => {
+      if (!originChoice || !originCity.trim()) { setErr("Choose a country and enter the city where you live."); return; }
+      answer("origin", { origin: originChoice, originCity: originCity.trim() });
+    };
+  }
   if (currentQ === "languages" || currentQ === "destinations") {
     const isD = currentQ === "destinations";
     const list: { id: string; label: string; sub?: string }[] = isD
       ? HOSPITALS.map((h) => {
           const o = F.origin ? ORIGIN_BY_ID[F.origin.v] : null;
           const same = o?.country === h.country;
-          const visaFree = !!o && h.visa.free.includes(o.id);
-          return { id: h.id, label: h.city, sub: o ? `${same ? "Drive" : "Flight"} · ${same ? "no visa" : visaFree ? "no visa needed" : "visa needed"} (sample)` : h.name };
+          return { id: h.id, label: h.city, sub: o ? `${same ? "Sample drive" : "Sample flight"} · entry requirements to confirm` : h.name };
         })
       : LANGUAGES;
     options = list.map((o) => {
@@ -631,11 +631,11 @@ export default function Intake() {
   const briefMissing = brief.some((b) => b.missing);
 
   const stepIdx = { story: 0, think: 0, ask: 1, brief: 2, build: 3 }[step];
-  const h1: React.CSSProperties = { margin: 0, fontSize: "clamp(34px, 4vw, 54px)", lineHeight: 1.05, letterSpacing: "-0.03em", fontWeight: 800 };
+  const h1: React.CSSProperties = { margin: 0, fontSize: "clamp(34px, 4vw, 54px)", lineHeight: 1.05, letterSpacing: "-0.03em", fontWeight: 500 };
   const typedTitle = (
     <>
       {ackText && (
-        <p style={{ margin: "0 0 10px", fontSize: 18, color: "var(--mint-soft)", minHeight: "1.5em", maxWidth: "40em" }}>
+        <p style={{ margin: "0 0 10px", fontSize: 18, color: "var(--teal-ink)", minHeight: "1.5em", maxWidth: "40em" }}>
           <span className="sr-only">{ackText}</span>
           <span aria-hidden="true">{typed.ackShown}</span>
         </p>
@@ -663,7 +663,7 @@ export default function Intake() {
               {saved ? "Saved" : "Autosave on"}
             </span>
             <CurrencyMenu />
-            <Link href={editMode ? resumePath(state) : "/"} style={{ color: "#dce6e2", textDecoration: "none", fontWeight: 600, padding: "0 8px", minHeight: 44, display: "inline-flex", alignItems: "center" }}>
+            <Link href={editMode ? resumePath(state) : "/"} style={{ color: "var(--ink-soft)", textDecoration: "none", fontWeight: 600, padding: "0 8px", minHeight: 44, display: "inline-flex", alignItems: "center" }}>
               {editMode ? "Back to my case" : "Save and exit"}
             </Link>
           </div>
@@ -685,9 +685,9 @@ export default function Intake() {
                 style={{
                   marginTop: 26,
                   borderRadius: 28,
-                  background: "rgba(247,244,236,0.06)",
+                  background: "rgba(20,45,59,0.06)",
                   transition: "border-color .3s ease, box-shadow .3s ease",
-                  border: `1.5px solid ${listening ? "var(--mint)" : "rgba(247,244,236,0.16)"}`,
+                  border: `1.5px solid ${listening ? "var(--mint)" : "rgba(20,45,59,0.16)"}`,
                   boxShadow: listening ? "0 0 0 6px rgba(111,208,195,0.12), 0 30px 60px -40px rgba(111,208,195,0.6)" : "none",
                 }}
               >
@@ -704,11 +704,11 @@ export default function Intake() {
                   }}
                   placeholder={PLACEHOLDERS[ph]}
                   rows={6}
-                  style={{ width: "100%", display: "block", resize: "none", border: 0, background: "transparent", color: "var(--ivory)", font: "inherit", fontSize: 21, lineHeight: 1.5, padding: "22px 24px 8px", minHeight: 196, outline: "none" }}
+                  style={{ width: "100%", display: "block", resize: "none", border: 0, background: "transparent", color: "var(--navy)", font: "inherit", fontSize: 21, lineHeight: 1.5, padding: "22px 24px 8px", minHeight: 196, outline: "none" }}
                 />
                 <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 12px 12px 16px", flexWrap: "wrap" }}>
                   {voice ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "6px 14px 6px 10px", borderRadius: 999, background: "rgba(243,174,120,0.16)", color: "var(--sand-soft)", fontSize: 14, fontWeight: 600 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "6px 14px 6px 10px", borderRadius: 999, background: "rgba(243,174,120,0.16)", color: "var(--rust)", fontSize: 14, fontWeight: 600 }}>
                       <span aria-hidden="true" style={{ display: "inline-flex", alignItems: "center", gap: 3, height: 20 }}>
                         {[0, 0.15, 0.3, 0.45, 0.6].map((d) => (
                           <span key={d} className="bv-bar" style={{ width: 3, height: 18, borderRadius: 3, background: "var(--sand)", animationDelay: `${d}s` }} />
@@ -717,13 +717,13 @@ export default function Intake() {
                       Listening (sample voice)
                     </span>
                   ) : (
-                    <button type="button" className="pill-btn" onClick={() => { setVoice(true); setText(""); setAuto(SAMPLE_STORY); setStoryErr(false); }} style={{ borderColor: "rgba(247,244,236,0.22)" }}>
+                    <button type="button" className="pill-btn" onClick={() => { setVoice(true); setText(""); setAuto(SAMPLE_STORY); setStoryErr(false); }} style={{ borderColor: "rgba(20,45,59,0.22)" }}>
                       <Mic size={17} />
                       Speak instead
                     </button>
                   )}
                   {storyFound > 0 && (
-                    <span key={storyFound} className="bv-swap" style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 999, background: "rgba(111,208,195,0.14)", color: "var(--mint-soft)", fontWeight: 600, fontSize: 14 }}>
+                    <span key={storyFound} className="bv-swap" style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 999, background: "rgba(111,208,195,0.14)", color: "var(--teal-ink)", fontWeight: 600, fontSize: 14 }}>
                       <Sparkle size={14} />
                       {storyFound} {storyFound === 1 ? "detail" : "details"} found
                     </span>
@@ -733,7 +733,7 @@ export default function Intake() {
               <div className="bv-in bv-d4" style={{ marginTop: 18, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                 <span style={{ fontSize: 14, color: "var(--muted)", marginRight: 4 }}>Or start with</span>
                 {STARTERS.map((s) => (
-                  <button key={s} type="button" className="bv-tile" onClick={() => { setText((t) => (t ? t.trim() + " " : "") + s + ". "); setStoryErr(false); }} style={{ minHeight: 40, padding: "6px 14px", borderRadius: 999, border: "1.5px solid rgba(247,244,236,0.16)", background: "rgba(247,244,236,0.05)", color: "var(--ivory)", fontSize: 15, cursor: "pointer" }}>
+                  <button key={s} type="button" className="bv-tile" onClick={() => { setText((t) => (t ? t.trim() + " " : "") + s + ". "); setStoryErr(false); }} style={{ minHeight: 40, padding: "6px 14px", borderRadius: 999, border: "1.5px solid rgba(20,45,59,0.16)", background: "rgba(20,45,59,0.05)", color: "var(--navy)", fontSize: 15, cursor: "pointer" }}>
                     {s}
                   </button>
                 ))}
@@ -747,7 +747,7 @@ export default function Intake() {
                   Use a sample story
                 </button>
                 {storyErr && (
-                  <span role="alert" style={{ color: "var(--sand-soft)", fontSize: 15 }}>
+                  <span role="alert" style={{ color: "var(--rust)", fontSize: 15 }}>
                     Add a sentence or two first, or use the sample story.
                   </span>
                 )}
@@ -787,12 +787,26 @@ export default function Intake() {
                       {options.map((o, i) => (
                         <button key={o.id} type="button" className={`tile bv-tile bv-in${o.on ? " is-on" : ""}`} onClick={o.pick} aria-pressed={o.on} style={{ minHeight: 64, animationDelay: `${0.04 * i}s` }}>
                           <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%" }}>
-                            <span style={{ fontSize: 17, fontWeight: 700 }}>{o.label}</span>
+                            <span style={{ fontSize: 17, fontWeight: 500 }}>{o.label}</span>
                             {o.on && <span className="badge bv-pop">{o.badge ?? <Check size={14} />}</span>}
                           </span>
                           {o.sub && <span className="sub">{o.sub}</span>}
                         </button>
                       ))}
+                    </div>
+                  )}
+                  {currentQ === "origin" && (
+                    <div className="bv-in" style={{ marginTop: 26, display: "grid", gap: 16, maxWidth: 560 }}>
+                      <label className="label">Country or territory where you live
+                        <select className="field" value={originChoice} onChange={(e) => { setOriginChoice(e.target.value); setErr(null); }}>
+                          <option value="">Choose a country or territory</option>
+                          {ORIGINS.filter((origin) => origin.id !== "other").sort((a, b) => a.label.localeCompare(b.label)).map((origin) => <option key={origin.id} value={origin.id}>{origin.label}</option>)}
+                        </select>
+                      </label>
+                      <label className="label">City where you live
+                        <input className="field" type="text" autoComplete="address-level2" maxLength={250} value={originCity} onChange={(e) => { setOriginCity(e.target.value); setErr(null); }} placeholder="Enter your city" />
+                      </label>
+                      <p className="planner-note">Your location helps plan travel. Entry requirements, route times and local care costs still need individual confirmation.{originChoice && ORIGIN_BY_ID[originChoice]?.lat === null ? " Until an actual departure airport is chosen, the guided comparison uses a placeholder route rather than a real travel quote." : ""}</p>
                     </div>
                   )}
                   {currentQ === "who" && (
@@ -801,7 +815,7 @@ export default function Intake() {
                         {(["family", "self"] as const).map((w) => {
                           const on = (ans.forWhom ?? F.forWhom ?? "family") === w;
                           return (
-                            <button key={w} type="button" className="bv-tile" aria-pressed={on} onClick={() => setAns({ ...ans, forWhom: w })} style={{ minHeight: 48, padding: "0 18px", borderRadius: 999, fontWeight: 600, cursor: "pointer", background: on ? "var(--ivory)" : "transparent", color: on ? "var(--navy)" : "var(--ivory)", border: `1.5px solid ${on ? "var(--ivory)" : "rgba(247,244,236,0.22)"}` }}>
+                            <button key={w} type="button" className="bv-tile" aria-pressed={on} onClick={() => setAns({ ...ans, forWhom: w })} style={{ minHeight: 48, padding: "0 18px", borderRadius: 999, fontWeight: 600, cursor: "pointer", background: on ? "var(--sage)" : "transparent", color: "var(--navy)", border: `1.5px solid ${on ? "var(--teal)" : "var(--line-d)"}` }}>
                               {w === "family" ? "For a family member" : "For myself"}
                             </button>
                           );
@@ -836,7 +850,7 @@ export default function Intake() {
                     </div>
                   )}
                   {err && (
-                    <p role="alert" className="bv-swap" style={{ margin: "16px 0 0", color: "var(--sand-soft)", fontSize: 16 }}>
+                    <p role="alert" className="bv-swap" style={{ margin: "16px 0 0", color: "var(--rust)", fontSize: 16 }}>
                       {err}
                     </p>
                   )}
@@ -869,7 +883,7 @@ export default function Intake() {
           {step === "brief" && (
             <div>
               {typedTitle}
-              <div className="bv-in bv-d2" style={{ marginTop: 26, padding: "30px clamp(20px, 3vw, 32px)", borderRadius: 28, background: "rgba(247,244,236,0.06)", border: "1px solid rgba(247,244,236,0.14)" }}>
+              <div className="bv-in bv-d2" style={{ marginTop: 26, padding: "30px clamp(20px, 3vw, 32px)", borderRadius: 28, background: "rgba(20,45,59,0.06)", border: "1px solid rgba(20,45,59,0.14)" }}>
                 <p style={{ margin: 0, fontSize: "clamp(19px, 2vw, 23px)", lineHeight: 1.75, letterSpacing: "-0.005em" }}>
                   {brief.map((b, i) =>
                     b.tok ? (
@@ -879,7 +893,7 @@ export default function Intake() {
                         className="bv-tok"
                         onClick={() => editFromBrief(b.tok!)}
                         aria-label={`Change: ${b.missing ? b.tok : b.t}`}
-                        style={{ display: "inline", fontWeight: 700, color: b.missing ? "var(--sand-soft)" : "var(--ivory)", background: b.missing ? "rgba(243,174,120,0.16)" : "rgba(111,208,195,0.16)", border: 0, borderBottom: `2px solid ${b.missing ? "var(--sand)" : "var(--mint)"}`, borderRadius: "8px 8px 2px 2px", padding: "1px 6px", margin: "0 1px", cursor: "pointer", lineHeight: "inherit", fontSize: "inherit" }}
+                        style={{ display: "inline", fontWeight: 500, color: b.missing ? "var(--rust)" : "var(--navy)", background: b.missing ? "rgba(243,174,120,0.16)" : "rgba(111,208,195,0.16)", border: 0, borderBottom: `2px solid ${b.missing ? "var(--sand)" : "var(--mint)"}`, borderRadius: "8px 8px 2px 2px", padding: "1px 6px", margin: "0 1px", cursor: "pointer", lineHeight: "inherit", fontSize: "inherit" }}
                       >
                         {b.t}
                       </button>
@@ -896,9 +910,9 @@ export default function Intake() {
               {!editMode && (
                 <ol className="bv-in bv-d3" style={{ margin: "26px 0 0", padding: 0, listStyle: "none", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
                   {[["I match partner hospitals", `and estimate all-in costs in ${cur.code}.`], ["You add records", "I sort and translate them for you."], [`${COORDINATOR.name.split(" ")[0]}, your coordinator`, "checks everything with you."]].map(([a, b], i) => (
-                    <li key={a} style={{ padding: 18, borderRadius: 20, background: "rgba(247,244,236,0.04)", border: "1px solid rgba(247,244,236,0.1)" }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--sand)", letterSpacing: "0.08em" }}>NEXT · {i + 1}</div>
-                      <div style={{ marginTop: 4, fontWeight: 700 }}>{a}</div>
+                    <li key={a} style={{ padding: 18, borderRadius: 20, background: "rgba(20,45,59,0.04)", border: "1px solid rgba(20,45,59,0.1)" }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: "var(--rust)", letterSpacing: "0.08em" }}>NEXT · {i + 1}</div>
+                      <div style={{ marginTop: 4, fontWeight: 500 }}>{a}</div>
                       <div style={{ fontSize: 15, color: "var(--muted)" }}>{b}</div>
                     </li>
                   ))}
@@ -924,7 +938,7 @@ export default function Intake() {
               <div style={{ flex: "1 1 400px", minWidth: 0 }}>
                 <h1 className="bv-in" style={{ ...h1, fontSize: "clamp(32px, 3.6vw, 48px)" }}>Building {possessive} case</h1>
                 <p className="bv-in bv-d1" style={{ margin: "10px 0 0", color: "var(--muted)", fontSize: 18 }}>Working through it now. Everything here uses sample providers and prices.</p>
-                <div aria-hidden="true" style={{ marginTop: 22, height: 6, borderRadius: 999, background: "rgba(247,244,236,0.12)", overflow: "hidden" }}>
+                <div aria-hidden="true" style={{ marginTop: 22, height: 6, borderRadius: 999, background: "rgba(20,45,59,0.12)", overflow: "hidden" }}>
                   <span style={{ display: "block", height: "100%", borderRadius: 999, background: "linear-gradient(90deg, #197C78, #6FD0C3)", transition: "width 1s ease", width: `${Math.round((Math.min(6, build) / 6) * 100)}%` }} />
                 </div>
                 <ol aria-live="polite" style={{ margin: "22px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -932,13 +946,13 @@ export default function Intake() {
                     const done = i < build;
                     const running = i === build && build < 6;
                     return (
-                      <li key={title} className="check-row" style={{ alignItems: "flex-start", opacity: i <= build ? 1 : 0.35, background: i <= build ? "rgba(247,244,236,0.05)" : "transparent" }}>
+                      <li key={title} className="check-row" style={{ alignItems: "flex-start", opacity: i <= build ? 1 : 0.35, background: i <= build ? "rgba(20,45,59,0.05)" : "transparent" }}>
                         <span aria-hidden="true" className="check-icon">
                           {done && <span className="check-done bv-pop"><Check size={15} style={{ color: "#fff" }} /></span>}
                           {running && <span className="spinner bv-spinner" />}
                         </span>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 700 }}>{title}</div>
+                          <div style={{ fontWeight: 500 }}>{title}</div>
                           {done && <div className="bv-swap" style={{ fontSize: 15, color: "var(--muted)" }}>{result}</div>}
                         </div>
                       </li>
@@ -952,11 +966,11 @@ export default function Intake() {
                       <span style={{ position: "absolute", right: 0, bottom: 0, width: 13, height: 13, borderRadius: 999, background: "var(--teal)", border: "2px solid var(--ivory)" }} />
                     </span>
                     <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-                      <div style={{ fontWeight: 800, fontSize: 19 }}>{cap(possessive)} case is ready</div>
+                      <div style={{ fontWeight: 500, fontSize: 19 }}>{cap(possessive)} case is ready</div>
                       <div style={{ fontSize: 15, color: "var(--ink-soft)" }}>{COORDINATOR.name} will review it with you. She speaks Arabic and English.</div>
                     </div>
                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      <Link href="/case/records" className="btn btn-primary bv-btn">
+                      <Link href={session ? "/case/records" : "/login?next=/case/records"} className="btn btn-primary bv-btn">
                         Add records
                         <Arrow size={18} />
                       </Link>
@@ -976,7 +990,7 @@ export default function Intake() {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <Sparkle size={18} style={{ color: "var(--mint)" }} />
               <h2>What I’ve understood</h2>
-              <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", color: "var(--sand)" }}>
+              <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 500, letterSpacing: "0.08em", color: "var(--rust)" }}>
                 <span className="bv-halo" style={{ width: 8, height: 8, borderRadius: 999, background: "var(--sand)", display: "inline-block" }} />
                 LIVE
               </span>
@@ -985,7 +999,7 @@ export default function Intake() {
               <span>{nFound} of {rows.length} details</span>
               <span>{pct}%</span>
             </div>
-            <div aria-hidden="true" style={{ marginTop: 8, height: 6, borderRadius: 999, background: "rgba(247,244,236,0.1)", overflow: "hidden" }}>
+            <div aria-hidden="true" style={{ marginTop: 8, height: 6, borderRadius: 999, background: "rgba(20,45,59,0.1)", overflow: "hidden" }}>
               <span style={{ display: "block", height: "100%", borderRadius: 999, background: "linear-gradient(90deg, #197C78, #6FD0C3)", transition: "width .6s cubic-bezier(.2,.7,.2,1)", width: `${pct}%` }} />
             </div>
             <dl style={{ margin: "18px 0 0", display: "flex", flexDirection: "column", gap: 2 }}>
@@ -995,7 +1009,7 @@ export default function Intake() {
                   <dd style={{ margin: 0, minWidth: 0, flex: 1 }}>
                     {r.v ? (
                       <>
-                        <span style={{ fontWeight: 700, fontSize: 16 }}>{r.v}</span>
+                        <span style={{ fontWeight: 500, fontSize: 16 }}>{r.v}</span>
                         {r.q && <span style={{ display: "block", fontSize: 12, color: "var(--muted-2)", fontStyle: "italic", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>from “{r.q}”</span>}
                       </>
                     ) : (

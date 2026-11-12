@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { Logo } from "./Icons";
 
 export type OrbMode = "idle" | "listen" | "think";
 
@@ -43,35 +44,7 @@ export function useTyped(ack: string, title: string) {
 }
 
 export function Orb({ mode = "idle" }: { mode?: OrbMode }) {
-  const speed = mode === "think" ? "0.9s" : mode === "listen" ? "2s" : "6s";
-  return (
-    <span aria-hidden="true" style={{ position: "relative", width: 52, height: 52, flex: "none" }}>
-      <span className="bv-halo" style={{ position: "absolute", inset: 0, borderRadius: 999, background: "rgba(111,208,195,0.35)" }} />
-      <span
-        style={{
-          position: "absolute",
-          inset: 0,
-          borderRadius: 999,
-          background: "conic-gradient(from 0deg, #197C78, #6FD0C3, #F3AE78, #197C78)",
-          animation: `bvSpin ${speed} linear infinite`,
-        }}
-      />
-      <span style={{ position: "absolute", inset: 6, borderRadius: 999, background: "radial-gradient(circle at 35% 30%, #2C6274, #142D3B 70%)" }} />
-      <span
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          width: 10,
-          height: 10,
-          margin: "-5px 0 0 -5px",
-          borderRadius: 999,
-          background: "#F7F4EC",
-          boxShadow: "0 0 14px 3px rgba(111,208,195,0.8)",
-        }}
-      />
-    </span>
-  );
+  return <span aria-hidden="true" className={`assistant-mark${mode === "think" ? " assistant-mark-busy" : ""}`}><Logo size={30} /></span>;
 }
 
 export function AssistantIdentity({ status, busy, mode }: { status: string; busy?: boolean; mode?: OrbMode }) {
@@ -79,17 +52,17 @@ export function AssistantIdentity({ status, busy, mode }: { status: string; busy
     <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
       <Orb mode={mode ?? (busy ? "think" : "idle")} />
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 500, fontSize: 16 }}>
           Bon Voyage assistant{" "}
           <span
             style={{
               fontSize: 11,
-              fontWeight: 800,
+              fontWeight: 500,
               letterSpacing: "0.08em",
               padding: "2px 7px",
               borderRadius: 6,
               background: "rgba(111,208,195,0.18)",
-              color: "var(--mint-soft)",
+              color: "var(--teal-ink)",
             }}
           >
             AI
@@ -129,7 +102,7 @@ export function AssistantPrompt({ ack = "", title, help, status, busy, mode, chi
     <div>
       <AssistantIdentity status={status} busy={busy} mode={mode} />
       {ack && (
-        <p style={{ margin: "0 0 10px", fontSize: 18, color: "var(--mint-soft)", minHeight: "1.5em", maxWidth: "42em" }}>
+        <p style={{ margin: "0 0 10px", fontSize: 18, color: "var(--teal-ink)", minHeight: "1.5em", maxWidth: "42em" }}>
           <span className="sr-only">{ack}</span>
           <span aria-hidden="true">{t.ackShown}</span>
         </p>
@@ -140,7 +113,7 @@ export function AssistantPrompt({ ack = "", title, help, status, busy, mode, chi
           fontSize: titleSize ?? "clamp(34px, 3.8vw, 50px)",
           lineHeight: 1.06,
           letterSpacing: "-0.03em",
-          fontWeight: 800,
+          fontWeight: 500,
           minHeight: "1.1em",
         }}
       >
@@ -169,7 +142,7 @@ export function StepDots({ step, total }: { step: number; total: number }) {
   return (
     <span className="dots" aria-label={`Step ${step + 1} of ${total}`}>
       {Array.from({ length: total }, (_, i) => (
-        <span key={i} style={{ width: i === step ? 26 : 8, background: i <= step ? "var(--mint)" : "rgba(247,244,236,0.2)" }} />
+        <span key={i} style={{ width: i === step ? 26 : 8, background: i <= step ? "var(--mint)" : "rgba(20,45,59,0.2)" }} />
       ))}
     </span>
   );
@@ -180,7 +153,7 @@ export function ProgressRow({ title, desc, state }: { title: string; desc?: stri
   return (
     <li
       className="check-row"
-      style={{ opacity: state === "wait" ? 0.4 : 1, background: state === "wait" ? "transparent" : "rgba(247,244,236,0.06)" }}
+      style={{ opacity: state === "wait" ? 0.4 : 1, background: state === "wait" ? "transparent" : "rgba(20,45,59,0.06)" }}
     >
       <span aria-hidden="true" className="check-icon">
         {state === "done" && (
@@ -193,7 +166,7 @@ export function ProgressRow({ title, desc, state }: { title: string; desc?: stri
         {state === "run" && <span className="spinner bv-spinner" />}
       </span>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 700 }}>{title}</div>
+        <div style={{ fontWeight: 500 }}>{title}</div>
         {desc && <div style={{ fontSize: 14, color: "var(--muted)" }}>{desc}</div>}
       </div>
     </li>

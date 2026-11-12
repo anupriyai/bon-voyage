@@ -17,6 +17,7 @@ interface Props {
   labels?: boolean;
   showAll?: boolean;
   plane?: boolean;
+  animate?: boolean;
 }
 
 type Ring = [number, number, number][];
@@ -111,10 +112,10 @@ function arcPoints(r: GlobeRoute): Arc {
 }
 
 /** A dotted globe that flies the camera to the active route and animates a plane along it. */
-export default function Globe({ routes, active, onPick, labels = true, showAll = true, plane = true }: Props) {
+export default function Globe({ routes, active, onPick, labels = true, showAll = true, plane = true, animate = true }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const props = useRef({ routes, active, labels, showAll, plane });
-  props.current = { routes, active, labels, showAll, plane };
+  const props = useRef({ routes, active, labels, showAll, plane, animate });
+  props.current = { routes, active, labels, showAll, plane, animate };
   const hits = useRef<{ i: number; x: number; y: number }[]>([]);
 
   useEffect(() => {
@@ -154,6 +155,7 @@ export default function Globe({ routes, active, onPick, labels = true, showAll =
       const ctx = c.getContext("2d");
       if (!ctx) return;
       const P = props.current;
+      const still = reduced || !P.animate;
       const rts = P.routes;
       const ai = P.active ?? selfActive;
       if (ai !== lastActive) {
@@ -164,13 +166,13 @@ export default function Globe({ routes, active, onPick, labels = true, showAll =
 
       if (act) {
         const m = arcPoints(act);
-        const tLon = m.midLon + (reduced ? 0 : Math.sin(now / 5000) * 5);
+        const tLon = m.midLon + (still ? 0 : Math.sin(now / 5000) * 5);
         const tLat = Math.max(-30, Math.min(40, m.midLat)) - 6;
         const d = ((tLon - view.lon + 540) % 360) - 180;
-        const k = 1 - Math.pow(0.02, dt);
+        const k = still ? 1 : 1 - Math.pow(0.02, dt);
         view.lon += d * k;
         view.lat += (tLat - view.lat) * k;
-      } else if (!reduced) view.lon += dt * 6;
+      } else if (!still) view.lon += dt * 6;
 
       const l0 = view.lon * D;
       const p0 = view.lat * D;
@@ -178,7 +180,7 @@ export default function Globe({ routes, active, onPick, labels = true, showAll =
       const cp0 = Math.cos(p0);
       const cx = W / 2;
       const cy = H / 2;
-      const R = Math.min(W, H) * 0.42;
+      const R = Math.min(W, H) * 0.44;
       const s = R / 270;
       const proj = (lon: number, cl: number, sl: number, alt = 1) => {
         const dl = lon - l0;
@@ -191,8 +193,8 @@ export default function Globe({ routes, active, onPick, labels = true, showAll =
 
       ctx.clearRect(0, 0, W, H);
       let g = ctx.createRadialGradient(cx, cy, R * 0.92, cx, cy, R * 1.22);
-      g.addColorStop(0, "rgba(111,208,195,0.32)");
-      g.addColorStop(0.45, "rgba(25,124,120,0.14)");
+      g.addColorStop(0, "rgba(111,208,195,0.04)");
+      g.addColorStop(0.45, "rgba(25,124,120,0.02)");
       g.addColorStop(1, "rgba(25,124,120,0)");
       ctx.fillStyle = g;
       ctx.beginPath();
@@ -200,9 +202,9 @@ export default function Globe({ routes, active, onPick, labels = true, showAll =
       ctx.fill();
 
       g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.4, R * 0.1, cx, cy, R);
-      g.addColorStop(0, "#24566A");
-      g.addColorStop(0.6, "#163646");
-      g.addColorStop(1, "#0C1F29");
+      g.addColorStop(0, "#fcfdf9");
+      g.addColorStop(0.6, "#eaf2ec");
+      g.addColorStop(1, "#d7e7df");
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(cx, cy, R, 0, Math.PI * 2);
@@ -227,7 +229,7 @@ export default function Globe({ routes, active, onPick, labels = true, showAll =
       };
 
       if (data) {
-        lines(data.grat, "rgba(247,244,236,0.07)", s);
+        lines(data.grat, "rgba(25,124,120,0.12)", s);
         const buckets: number[][] = [[], [], [], []];
         for (let i = 0; i < data.lon.length; i++) {
           const dl = data.lon[i] - l0;
@@ -238,26 +240,26 @@ export default function Globe({ routes, active, onPick, labels = true, showAll =
           const y = cp0 * data.sl[i] - sp0 * data.cl[i] * cd;
           buckets[Math.min(3, Math.floor(z * 4))].push(cx + x * R, cy - y * R);
         }
-        const alphas = [0.28, 0.5, 0.72, 0.92];
+        const alphas = [0.22, 0.35, 0.48, 0.62];
         buckets.forEach((arr, b) => {
-          const sz = (1.5 + b * 0.45) * s;
-          ctx.fillStyle = `rgba(111,208,195,${alphas[b]})`;
+          const sz = (1.4 + b * 0.3) * s;
+          ctx.fillStyle = `rgba(25,124,120,${alphas[b]})`;
           ctx.beginPath();
           for (let i = 0; i < arr.length; i += 2) ctx.rect(arr[i] - sz / 2, arr[i + 1] - sz / 2, sz, sz);
           ctx.fill();
         });
-        lines(data.coasts, "rgba(190,232,224,0.45)", 1.1 * s);
+        lines(data.coasts, "rgba(25,124,120,0.27)", 1.1 * s);
       }
 
       g = ctx.createRadialGradient(cx - R * 0.45, cy - R * 0.5, R * 0.2, cx, cy, R * 1.05);
       g.addColorStop(0, "rgba(255,255,255,0.07)");
       g.addColorStop(0.55, "rgba(0,0,0,0)");
-      g.addColorStop(1, "rgba(4,14,20,0.55)");
+      g.addColorStop(1, "rgba(25,80,65,0.08)");
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(cx, cy, R, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "rgba(247,244,236,0.18)";
+      ctx.strokeStyle = "rgba(25,124,120,0.16)";
       ctx.lineWidth = 1.2 * s;
       ctx.beginPath();
       ctx.arc(cx, cy, R, 0, Math.PI * 2);
@@ -286,9 +288,9 @@ export default function Globe({ routes, active, onPick, labels = true, showAll =
         ctx.stroke();
         ctx.setLineDash([]);
       };
-      const font = (w: number, px: number) => `${w} ${Math.round(px * s * 1.6)}px "Source Sans 3", system-ui, sans-serif`;
+      const font = (w: number, px: number) => `${w} ${Math.round(px * s * 1.6)}px ${getComputedStyle(c).fontFamily}`;
       const pill = (text: string, x: number, y: number, bg: string, fg: string, anchor: "left" | "right") => {
-        ctx.font = font(700, 8.6);
+        ctx.font = font(500, 8.6);
         const tw = ctx.measureText(text).width;
         const ph = 15 * s * 1.25;
         const pw = tw + 16 * s * 1.25;
@@ -309,19 +311,19 @@ export default function Globe({ routes, active, onPick, labels = true, showAll =
         const end = A.pts[A.pts.length - 1];
         const q = proj(end[0], end[1], end[2]);
         if (q[2] > 0) hits.current.push({ i, x: q[0] / dpr, y: q[1] / dpr });
-        if (i === ai) return;
-        if (P.showAll) drawArc(A.pts, A.pts.length - 1, "rgba(111,208,195,0.32)", 1.3 * s);
+        if (i === ai || !P.showAll) return;
+        if (P.showAll) drawArc(A.pts, A.pts.length - 1, "rgba(111,208,195,0.04)", 1.3 * s);
         if (q[2] > 0.05) {
           ctx.fillStyle = "#6FD0C3";
           ctx.beginPath();
           ctx.arc(q[0], q[1], 3.6 * s, 0, Math.PI * 2);
           ctx.fill();
-          ctx.strokeStyle = "#0E222D";
+          ctx.strokeStyle = "#ffffff";
           ctx.lineWidth = 1.5 * s;
           ctx.stroke();
           if (P.labels && q[2] > 0.25) {
             ctx.font = font(600, 7.6);
-            ctx.fillStyle = `rgba(220,230,226,${Math.min(1, q[2] * 1.4)})`;
+            ctx.fillStyle = `rgba(20,45,59,${Math.min(1, q[2] * 1.4)})`;
             ctx.textBaseline = "middle";
             ctx.fillText(r.bLabel, q[0] + 8 * s, q[1]);
           }
@@ -332,26 +334,27 @@ export default function Globe({ routes, active, onPick, labels = true, showAll =
         const { pts } = arcPoints(act);
         const N = pts.length - 1;
         const since = now - switchedAt;
-        const prog = reduced ? 1 : Math.min(1, since / 1500);
+        const prog = still ? 1 : Math.min(1, since / 1500);
         const upto = Math.max(1, Math.round(N * (1 - Math.pow(1 - prog, 3))));
         ctx.save();
         ctx.shadowColor = "rgba(243,174,120,0.8)";
-        ctx.shadowBlur = 14 * s;
+        ctx.shadowBlur = 0;
         drawArc(pts, upto, "#F3AE78", 2.8 * s);
+        if (!still) drawArc(pts, upto, "rgba(25,124,120,0.5)", 1.2 * s, [2 * s, 14 * s]);
         ctx.restore();
-        drawArc(pts, upto, "rgba(255,255,255,0.8)", 1.2 * s, [2 * s, 10 * s]);
+
 
         const o = proj(pts[0][0], pts[0][1], pts[0][2]);
         const e = proj(pts[N][0], pts[N][1], pts[N][2]);
         if (o[2] > 0) {
-          ctx.fillStyle = "#F7F4EC";
+          ctx.fillStyle = "#197c78";
           ctx.beginPath();
           ctx.arc(o[0], o[1], 4.5 * s, 0, Math.PI * 2);
           ctx.fill();
-          if (P.labels) pill(`From ${act.aLabel}`, o[0], o[1], "rgba(14,34,45,0.85)", "#F7F4EC", o[0] > e[0] ? "right" : "left");
+          if (P.labels) pill(act.aLabel, o[0], o[1], "#ffffff", "#142D3B", o[0] > e[0] ? "right" : "left");
         }
         if (e[2] > 0) {
-          for (let k = 0; k < 2; k++) {
+          for (let k = 0; k < (still ? 0 : 1); k++) {
             const ph = (now / 1800 + k * 0.5) % 1;
             ctx.strokeStyle = `rgba(243,174,120,${(1 - ph) * 0.9})`;
             ctx.lineWidth = 2 * s;
@@ -363,14 +366,14 @@ export default function Globe({ routes, active, onPick, labels = true, showAll =
           ctx.beginPath();
           ctx.arc(e[0], e[1], 5.5 * s, 0, Math.PI * 2);
           ctx.fill();
-          ctx.strokeStyle = "#0E222D";
+          ctx.strokeStyle = "#ffffff";
           ctx.lineWidth = 2 * s;
           ctx.stroke();
-          if (P.labels) pill(act.bLabel, e[0], e[1], "#F3AE78", "#142D3B", o[0] > e[0] ? "left" : "right");
+          if (P.labels) pill(act.bLabel, e[0], e[1], "#ffffff", "#142D3B", o[0] > e[0] ? "left" : "right");
         }
 
         if (prog >= 1 && P.plane) {
-          const loopT = reduced ? 0.55 : ((since - 1500) / 4200) % 1;
+          const loopT = still ? 0.55 : ((since - 1500) / 4200) % 1;
           const f = loopT * N;
           const i0 = Math.floor(f);
           const fr = f - i0;
@@ -407,7 +410,7 @@ export default function Globe({ routes, active, onPick, labels = true, showAll =
             ctx.shadowColor = "rgba(0,0,0,0.45)";
             ctx.shadowBlur = 8;
             ctx.shadowOffsetY = 3;
-            ctx.fillStyle = "#FFFFFF";
+            ctx.fillStyle = "#197C78";
             ctx.beginPath();
             const shape = [13, 0, 9, -1.6, 2, -1.8, -3, -10, -6, -10, -3, -1.8, -9, -1.6, -11.5, -5, -13.5, -5, -12, 0, -13.5, 5, -11.5, 5, -9, 1.6, -3, 1.8, -6, 10, -3, 10, 2, 1.8, 9, 1.6];
             ctx.moveTo(shape[0], shape[1]);

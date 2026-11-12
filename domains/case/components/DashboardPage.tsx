@@ -1,5 +1,7 @@
 "use client";
 
+import { BookingPanel } from "@/domains/travel";
+import { PriceWatchPanel } from "@/domains/pricing";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AssistantPrompt, StepDots } from "@/shared/ui/Assistant";
@@ -135,14 +137,14 @@ export default function DashboardPage() {
               <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 12 }}>
                 <button type="button" className={`tile bv-tile bv-in${state.scanDecision === "approved" ? " is-on" : ""}`} onClick={() => decide("approved")} aria-pressed={state.scanDecision === "approved"} style={tile}>
                   <span className="sub">At {o.hospital.city}, on arrival</span>
-                  <span style={{ fontSize: 30, fontWeight: 800 }}>{money(ch.amount)}</span>
+                  <span style={{ fontSize: 30, fontWeight: 500 }}>{money(ch.amount)}</span>
                   <span className="sub" style={{ fontSize: 15 }}>{ch.title}. Added to the hospital bill. No extra trip.</span>
                 </button>
                 {ch.cheaper && (
-                  <button type="button" className={`tile bv-tile bv-in${state.scanDecision === "cheaper" ? " is-on" : ""}`} onClick={() => decide("cheaper")} aria-pressed={state.scanDecision === "cheaper"} style={{ ...tile, borderColor: state.scanDecision === "cheaper" ? "var(--ivory)" : "rgba(111,208,195,0.6)", animationDelay: ".08s" }}>
-                    <span style={{ position: "absolute", top: -11, right: 16, fontSize: 12, fontWeight: 800, padding: "2px 10px", borderRadius: 999, background: "var(--mint)", color: "var(--navy)" }}>AI suggests · saves {money(ch.amount - ch.cheaper.amount)}</span>
+                  <button type="button" className={`tile bv-tile bv-in${state.scanDecision === "cheaper" ? " is-on" : ""}`} onClick={() => decide("cheaper")} aria-pressed={state.scanDecision === "cheaper"} style={{ ...tile, borderColor: state.scanDecision === "cheaper" ? "var(--navy)" : "rgba(111,208,195,0.6)", animationDelay: ".08s" }}>
+                    <span style={{ position: "absolute", top: -11, right: 16, fontSize: 12, fontWeight: 500, padding: "2px 10px", borderRadius: 999, background: "var(--mint)", color: "var(--navy)" }}>AI suggests · saves {money(ch.amount - ch.cheaper.amount)}</span>
                     <span className="sub">Near home, before travel</span>
-                    <span style={{ fontSize: 30, fontWeight: 800 }}>{money(ch.cheaper.amount)}</span>
+                    <span style={{ fontSize: 30, fontWeight: 500 }}>{money(ch.cheaper.amount)}</span>
                     <span className="sub" style={{ fontSize: 15 }}>The team has agreed to accept it (sample).</span>
                   </button>
                 )}
@@ -160,10 +162,10 @@ export default function DashboardPage() {
             <div className="card-d" style={{ marginTop: 24, maxWidth: 640 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
                 {fields.map(([label, value], k) => (
-                  <div key={label} style={{ padding: "12px 14px", borderRadius: 16, background: "rgba(247,244,236,0.06)", border: `1.5px solid ${pf ? "rgba(111,208,195,0.5)" : "rgba(247,244,236,0.12)"}`, minHeight: 64 }}>
+                  <div key={label} style={{ padding: "12px 14px", borderRadius: 16, background: "rgba(20,45,59,0.06)", border: `1.5px solid ${pf ? "rgba(111,208,195,0.5)" : "rgba(20,45,59,0.12)"}`, minHeight: 64 }}>
                     <div style={{ fontSize: 13, color: "var(--muted)" }}>{label}</div>
                     {pf ? (
-                      <div style={{ fontWeight: 700, fontSize: 18 }}>
+                      <div style={{ fontWeight: 500, fontSize: 18 }}>
                         <span className="bv-type" style={{ animationDelay: `${k * 0.5}s` }}>{value}</span>
                       </div>
                     ) : (
@@ -181,19 +183,19 @@ export default function DashboardPage() {
 
           {step === 2 && (
             <div style={{ marginTop: 22, display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
-              <div style={{ flex: "0 1 300px", minWidth: 240, borderRadius: 26, background: "rgba(8,22,30,0.35)", border: "1px solid rgba(247,244,236,0.1)", padding: 6 }}>
+              <div style={{ flex: "0 1 300px", minWidth: 240, borderRadius: 26, background: "var(--surface-tint)", border: "1px solid rgba(20,45,59,0.1)", padding: 6 }}>
                 <Globe routes={[{ a: [origin.lon ?? 35.85, origin.lat ?? 32.55], b: [o.hospital.lon, o.hospital.lat], aLabel: originCity, bLabel: o.hospital.city }]} active={0} plane={fl} showAll={false} />
               </div>
               <ol style={{ flex: "1 1 300px", minWidth: 0, margin: 0, padding: 0, listStyle: "none" }}>
                 {itin.map((it, k) => (
                   <li key={it.title} className="bv-in" style={{ display: "flex", gap: 12, animationDelay: `${k * 0.08}s` }}>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: "none", width: 18 }}>
-                      <span aria-hidden="true" style={{ width: 14, height: 14, marginTop: 4, borderRadius: 999, background: it.kind === "done" ? "var(--mint)" : it.kind === "next" ? "var(--sand)" : "transparent", border: it.kind === "up" ? "2px solid rgba(247,244,236,0.35)" : 0, boxShadow: it.kind === "next" ? "0 0 0 4px rgba(243,174,120,0.25)" : "none" }} />
-                      {k < itin.length - 1 && <span aria-hidden="true" style={{ width: 2, flex: 1, minHeight: 14, marginTop: 2, background: it.kind === "done" ? "var(--mint)" : "rgba(247,244,236,0.15)" }} />}
+                      <span aria-hidden="true" style={{ width: 14, height: 14, marginTop: 4, borderRadius: 999, background: it.kind === "done" ? "var(--mint)" : it.kind === "next" ? "var(--sand)" : "transparent", border: it.kind === "up" ? "2px solid rgba(20,45,59,0.35)" : 0, boxShadow: it.kind === "next" ? "0 0 0 4px rgba(243,174,120,0.25)" : "none" }} />
+                      {k < itin.length - 1 && <span aria-hidden="true" style={{ width: 2, flex: 1, minHeight: 14, marginTop: 2, background: it.kind === "done" ? "var(--mint)" : "rgba(20,45,59,0.15)" }} />}
                     </div>
                     <div style={{ flex: 1, minWidth: 0, paddingBottom: 12 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
-                        <span style={{ fontWeight: 700 }}>{it.title}</span>
+                        <span style={{ fontWeight: 500 }}>{it.title}</span>
                         <span style={{ fontSize: 13, color: "var(--muted)", whiteSpace: "nowrap" }}>{fmtDay(it.date)}</span>
                       </div>
                       <div style={{ fontSize: 13, color: "var(--muted)" }}>{it.note}</div>
@@ -223,13 +225,14 @@ export default function DashboardPage() {
         </AssistantPrompt>
       </section>
 
+      {!state.sample && <><BookingPanel caseId={state.id} /><p><Link href="/case/stays">View stay quotes and bookings</Link></p><PriceWatchPanel caseId={state.id} /></>}
       <aside aria-label="Your journey" className="panel bv-in" style={{ animationDelay: ".2s" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <svg width="92" height="92" viewBox="0 0 84 84" role="img" aria-label={`${days} days until travel`} style={{ flex: "none" }}>
-            <circle cx="42" cy="42" r="34" fill="none" stroke="rgba(247,244,236,0.12)" strokeWidth="6" />
+            <circle cx="42" cy="42" r="34" fill="none" stroke="rgba(20,45,59,0.12)" strokeWidth="6" />
             <circle cx="42" cy="42" r="34" fill="none" stroke="#F3AE78" strokeWidth="6" strokeLinecap="round" strokeDasharray="213.6" transform="rotate(-90 42 42)" style={{ strokeDashoffset: 213.6 * Math.min(1, days / 21), animation: "bvRingDraw 1.4s cubic-bezier(.2,.7,.2,1) both" }} />
             <text x="42" y="45" textAnchor="middle" fontSize="24" fontWeight="800" fill="#F7F4EC">{days}</text>
-            <text x="42" y="57" textAnchor="middle" fontSize="7" fontWeight="700" fill="#B8C7C3">DAYS TO GO</text>
+            <text x="42" y="57" textAnchor="middle" fontSize="7" fontWeight="700" fill="#52666d">DAYS TO GO</text>
           </svg>
           <div>
             <h2>{originCity} → {o.hospital.city}</h2>
@@ -245,7 +248,7 @@ export default function DashboardPage() {
                 <span>{d.label}</span>
                 <span className={`pill ${d.ok ? "pill-ok" : "pill-wait"}`}>{d.status}</span>
               </div>
-              <div aria-hidden="true" style={{ marginTop: 5, height: 4, borderRadius: 999, background: "rgba(247,244,236,0.1)", overflow: "hidden" }}>
+              <div aria-hidden="true" style={{ marginTop: 5, height: 4, borderRadius: 999, background: "rgba(20,45,59,0.1)", overflow: "hidden" }}>
                 <span style={{ display: "block", height: "100%", borderRadius: 999, transition: "width .8s cubic-bezier(.2,.7,.2,1)", background: d.color, width: `${d.pct}%` }} />
               </div>
             </li>
@@ -257,7 +260,7 @@ export default function DashboardPage() {
           <span style={{ color: "var(--muted)" }}>Committed (deposit, simulated)</span>
           <strong>{money(deposit)}</strong>
         </div>
-        <div aria-hidden="true" style={{ marginTop: 6, height: 8, borderRadius: 999, background: "rgba(247,244,236,0.1)", overflow: "hidden" }}>
+        <div aria-hidden="true" style={{ marginTop: 6, height: 8, borderRadius: 999, background: "rgba(20,45,59,0.1)", overflow: "hidden" }}>
           <span className="bv-grow" style={{ display: "block", height: "100%", borderRadius: 999, background: "linear-gradient(90deg, #197C78, #6FD0C3)", width: `${Math.round((deposit / expected) * 100)}%` }} />
         </div>
         <div style={{ marginTop: 4, fontSize: 13, color: "var(--muted)" }}>of {money(expected)} expected</div>
@@ -267,8 +270,8 @@ export default function DashboardPage() {
         </div>
         <ul aria-live="polite" style={{ margin: "8px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
           {feed.map(([who, text, when], k) => (
-            <li key={text} className={k === 0 && feedN > 2 ? "bv-new" : "bv-in"} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px", borderRadius: 14, background: "rgba(247,244,236,0.05)" }}>
-              <span className="avatar" aria-hidden="true" style={{ width: 30, height: 30, fontSize: 11, ...(who === "HM" ? { background: "var(--sand)" } : { background: "rgba(111,208,195,0.18)", color: "var(--mint-soft)" }) }}>{who}</span>
+            <li key={text} className={k === 0 && feedN > 2 ? "bv-new" : "bv-in"} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px", borderRadius: 14, background: "rgba(20,45,59,0.05)" }}>
+              <span className="avatar" aria-hidden="true" style={{ width: 30, height: 30, fontSize: 11, ...(who === "HM" ? { background: "var(--sand)" } : { background: "rgba(111,208,195,0.18)", color: "var(--teal-ink)" }) }}>{who}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14 }}>{text}</div>
                 <div style={{ fontSize: 12, color: "var(--muted-2)" }}>{when}</div>

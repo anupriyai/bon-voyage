@@ -35,10 +35,14 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "tooling/**/*.mts"
+    "tooling/**/*.mts",
+    ".next-isolated/types/**/*.ts",
+    ".next-isolated/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    "bon-voyage"
+    "bon-voyage",
+    ".next/types/* *.ts",
+    ".next/dev/types/* *.ts"
   ]
 }

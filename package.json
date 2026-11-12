@@ -14,7 +14,8 @@
   "author": "",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
+    "dev:turbo": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "test": "vitest run --config tooling/vitest.config.mts",
@@ -23,10 +24,15 @@
     "audit:verify": "node --env-file=.env.local shared/lib/db/verifyAudit.mts",
     "launch": "python3 tooling/launch.py",
     "launch:status": "python3 tooling/launch.py status",
-    "launch:stop": "python3 tooling/launch.py stop"
+    "launch:stop": "python3 tooling/launch.py stop",
+    "price-watch": "node --env-file=.env.local tooling/runPriceWatch.mjs",
+    "production:check": "node --env-file=.env.local tooling/verifyProduction.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
+    "@better-auth/passkey": "1.7.12",
+    "@duffel/api": "4.31.0",
+    "@vercel/functions": "3.10.6",
     "better-auth": "^1.7.12",
     "drizzle-orm": "^0.45.4",
     "next": "^16.4.2",
@@ -42,6 +48,7 @@
     "@types/react-dom": "^19.3.0",
     "drizzle-kit": "^0.31.11",
     "typescript": "^7.0.2",
+    "vite": "7.3.8",
     "vitest": "^5.0.5"
   }
 }

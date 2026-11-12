@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-11-10T18:21:21.235Z",
+  "checks": [
+    "HTTP: public routes and sample travel; authenticated encrypted save/reload; owner isolation; duplicate-safe requests; redacted valid audit chain; sample SEO exclusions",
+    "Browser: treatment synonyms, filters, comparison cap, pagination/history, flight+stay selection, invalidation, magic-link new-tab restoration, save, duplicate request, account display, aborted-save recovery and successful retry",
+    "Browser: explicit anonymous resume overrides older same-offer account draft; live account switch clears inaccessible saved choices, disables save and preserves old/new account and anonymous caches",
+    "Browser: 1440px/390px route matrix, mobile filter drawer/focus return and trip selections, fixed subtotal/review shortcut, no horizontal overflow/runtime errors, Matter fonts, keyboard entry, reduced-motion rendering; same-tab magic-link restoration; guided intake and sample options/flights/plan remain available"
+  ],
+  "sampleOnly": true
+}

@@ -141,7 +141,7 @@ export const PauseIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
-export function Logo({ size = 32, light = true }: { size?: number; light?: boolean }) {
+export function Logo({ size = 32, light = false }: { size?: number; light?: boolean }) {
   return (
     <svg width={size} height={size} viewBox="0 0 34 34" fill="none" aria-hidden="true">
       <circle cx="13" cy="17" r="8.5" stroke={light ? "#6FD0C3" : "#197C78"} strokeWidth="2.2" />

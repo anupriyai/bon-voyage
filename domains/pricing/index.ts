@@ -18,3 +18,8 @@ export {
 } from "@/domains/pricing/model/ranking";
 export { DEFAULT_DROP, checkWatch, isDrop, priceCalendar, type DropThreshold, type WatchState } from "@/domains/pricing/model/priceWatch";
 export { searchTrips, splitFallback, targetDates, widenTrips } from "@/domains/pricing/search";
+
+export { findOptions, flightQuery, type FlightOptions, type FlightSchedule } from "./findOptions";
+export { planningUsdRate } from "./model/exchange";
+export { PriceWatchPanel } from "./components/PriceWatchPanel";
+export { careEstimate, type CareEstimateInput } from "./model/careEstimate";

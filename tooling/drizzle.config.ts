@@ -5,7 +5,7 @@ process.loadEnvFile?.(".env.local");
 // Migrations run as the owner role (on Neon: the direct, non-pooled host). The app connects as bv_app.
 export default defineConfig({
   dialect: "postgresql",
-  schema: ["./domains/account/db.ts", "./domains/case/db.ts"],
+  schema: ["./domains/account/db.ts", "./domains/case/db.ts", "./domains/travel/db.ts", "./domains/pricing/db.ts", "./domains/providers/db.ts"],
   out: "./shared/lib/db/migrations",
   dbCredentials: { url: process.env.DATABASE_OWNER_URL! },
 });

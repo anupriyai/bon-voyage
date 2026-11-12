@@ -1,5 +1,6 @@
 // The database connection, and the only way the app writes: inside withActor, so every change to an audited
 // table is attributed (see migrations/0001_audit.sql).
+import { attachDatabasePool } from "@vercel/functions";
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
@@ -21,6 +22,7 @@ const AUDIT_LOCK = 4242001;
 export function createDb(url: string, max = 5): { db: Db; pool: Pool } {
   // Small pool: in production it sits on top of Neon's PgBouncer.
   const pool = new Pool({ connectionString: url, max });
+  if (process.env.VERCEL) attachDatabasePool(pool);
   return { db: drizzle({ client: pool }), pool };
 }
 

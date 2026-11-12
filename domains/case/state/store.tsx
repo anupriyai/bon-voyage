@@ -10,114 +10,31 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { authClient } from "@/domains/account/client";
+import { CaseSync, mergeSavedCases, type SavedCase } from "./sync";
 import {
   DEFAULT_PRIORITIES,
   emptyIntake,
   recordsFor,
   COORDINATOR,
-  type HospitalId,
   type Intake,
 } from "@/domains/case/data/catalogue";
 import {
   buildPlan,
+  applyFlightCost,
+  applyStayCost,
   evaluateAll,
   firstName,
   matchedOptions,
   planImpact,
-  type CostView,
-  type Owner,
-  type TaskStatus,
 } from "@/domains/case/model/engine";
 
 const KEY = "bon-voyage-store-v2";
 const DAY = 86400000;
 
-export interface RecFile {
-  name: string;
-  size: number;
-  at: string;
-  docDate?: string;
-  /** What the assistant recognised the file as. */
-  found?: string;
-  /** Set once the assistant has read (and if needed translated) the file. */
-  translated?: boolean;
-}
-
-export interface RecordEntry {
-  files: RecFile[];
-  /** Physical samples: a medical courier collects them. */
-  courier?: boolean;
-  /** The assistant drafted a request (lab test, letter) for the coordinator to send. */
-  requested?: boolean;
-}
-
-export interface ChatMsg {
-  from: "you" | "coordinator";
-  text: string;
-  at: string;
-}
-
-export interface ApprovedChange {
-  id: string;
-  label: string;
-  amount: number;
-  at: string;
-}
-
-export interface CaseState {
-  id: string;
-  updatedAt: string;
-  intake: Intake;
-  draftStep: number;
-  complete: boolean;
-  createdAt: string | null;
-  sample: boolean;
-  records: Record<string, RecordEntry>;
-  unsorted: RecFile[];
-  secondOpinionAt: string | null;
-  secondOpinionSkipped: boolean;
-  passportAdded: boolean;
-  /** Answers to the short health-history questions, instead of a document. */
-  health: Record<string, string>;
-  costView: CostView;
-  chosenId: HospitalId | null;
-  chosenAt: string | null;
-  owners: Record<string, Owner>;
-  taskStatus: Record<string, TaskStatus>;
-  consultSlot: string | null;
-  planApprovedAt: string | null;
-  scanDecision: "pending" | "approved" | "cheaper";
-  approved: ApprovedChange[];
-  chat: ChatMsg[];
-}
-
-export function initialState(id = ""): CaseState {
-  return {
-    id,
-    updatedAt: new Date(0).toISOString(),
-    intake: emptyIntake(),
-    draftStep: 1,
-    complete: false,
-    createdAt: null,
-    sample: false,
-    records: {},
-    unsorted: [],
-    secondOpinionAt: null,
-    secondOpinionSkipped: false,
-    passportAdded: false,
-    health: {},
-    costView: "expected",
-    chosenId: null,
-    chosenAt: null,
-    owners: {},
-    taskStatus: {},
-    consultSlot: null,
-    planApprovedAt: null,
-    scanDecision: "pending",
-    approved: [],
-    chat: [],
-  };
-}
+export { initialState } from "../model/caseState";
+export type { RecFile, RecordEntry, ChatMsg, ApprovedChange, CaseState } from "../model/caseState";
+import { initialState, selectedFlightFor, selectedStayFor, type CaseState, type RecFile } from "../model/caseState";
 
 function sampleState(id: string, email: string): CaseState {
   const now = new Date();
@@ -224,6 +141,7 @@ export function recordProgress(state: CaseState, now: Date) {
 /* ---------- Accounts and saved cases ---------- */
 
 interface Store {
+  savedIds?: string[];
   session: { email: string } | null;
   activeId: string | null;
   cases: Record<string, CaseState>;
@@ -233,7 +151,7 @@ const emptyStore = (): Store => ({ session: null, activeId: null, cases: {} });
 const EMPTY_CASE = initialState();
 
 export const normEmail = (e: string) => e.trim().toLowerCase();
-const uid = () => `c_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+const uid = () => crypto.randomUUID();
 
 /** A case belongs to whoever's email is on it. Unfinished drafts have no owner yet. */
 export function ownedBy(c: CaseState, email: string): boolean {
@@ -261,7 +179,7 @@ interface Ctx {
   hasActive: boolean;
   ready: boolean;
   session: { email: string } | null;
-  /** Finished cases belonging to the signed-in email, newest first. */
+  /** Completed cases from the verified account, newest first. */
   myCases: CaseState[];
   /** The unfinished request in this browser, if the person has started filling one in. */
   draft: CaseState | null;
@@ -272,11 +190,10 @@ interface Ctx {
   startDraft: (prefill?: Partial<Intake>, fresh?: boolean) => void;
   openCase: (id: string) => void;
   deleteCase: (id: string) => void;
-  /** Sign in with an email that has saved cases. Returns the cases found (empty means no sign-in). */
-  login: (email: string) => CaseState[];
-  /** Create the session once a request has been submitted. */
-  signIn: (email: string) => void;
-  logout: () => void;
+  saveStatus: "device" | "loading" | "saving" | "saved" | "error" | "conflict";
+  saveNow: () => Promise<void>;
+  reloadCases: () => void;
+  logout: () => Promise<void>;
   loadSample: () => void;
   chatOpen: boolean;
   chatDraft: string;
@@ -288,39 +205,132 @@ interface Ctx {
 const CaseContext = createContext<Ctx | null>(null);
 
 export function CaseProvider({ children }: { children: ReactNode }) {
+  const { data: authSession, isPending, error: authError } = authClient.useSession();
+  const session = authSession?.user ? { id: authSession.user.id, email: authSession.user.email } : null;
+  const accountId = session?.id ?? "guest";
   const [store, setStore] = useState<Store>(emptyStore);
-  const [ready, setReady] = useState(false);
+  const [readyAccount, setReadyAccount] = useState<string | null>(null);
+  const ready = !isPending && readyAccount === accountId;
+  const [saveStatus, setSaveStatus] = useState<Ctx["saveStatus"]>("loading");
+  const [reload, setReload] = useState(0);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatDraft, setChatDraft] = useState("");
   const timers = useRef<number[]>([]);
+  const sync = useRef<CaseSync | null>(null);
+  const latest = useRef(store);
+  latest.current = store;
+  const identity = useRef(accountId);
+  identity.current = accountId;
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<Store>;
+    if (isPending) return;
+    let cancelled = false;
+    const controller = new AbortController();
+    setReadyAccount(null);
+    setSaveStatus("loading");
+    sync.current = null;
+    const read = (key: string): Store => {
+      try {
+        const value = JSON.parse(window.localStorage.getItem(key) ?? "null");
+        if (!value?.cases) return emptyStore();
         const cases: Record<string, CaseState> = {};
-        for (const [id, c] of Object.entries(parsed.cases ?? {})) {
-          cases[id] = { ...initialState(id), ...c, id, intake: { ...emptyIntake(), ...(c.intake ?? {}) } };
+        for (const c of Object.values(value.cases) as CaseState[]) {
+          // Legacy browser IDs are upgraded before they can reach the database.
+          const id = /^[0-9a-f-]{36}$/i.test(c.id) ? c.id : uid();
+          cases[id] = { ...initialState(id), ...c, id, intake: { ...emptyIntake(), ...c.intake } };
         }
-        setStore({ session: parsed.session ?? null, activeId: parsed.activeId ?? null, cases });
+        return { session: null, savedIds: value.savedIds ?? [], cases, activeId: cases[value.activeId]?.id ?? Object.keys(cases)[0] ?? null };
+      } catch { return emptyStore(); }
+    };
+    async function load() {
+      const key = `${KEY}:${accountId}`;
+      let local = read(key);
+      if (accountId === "guest" && !Object.keys(local.cases).length) {
+        local = read(KEY);
+        try {
+          window.localStorage.setItem(key, JSON.stringify(local));
+          window.localStorage.removeItem(KEY);
+        } catch { /* Keep the legacy copy if storage is blocked. */ }
       }
-    } catch {
-      // Ignore unreadable or blocked storage; the app works without it.
+      const pending = session ? read(`${KEY}:guest`) : emptyStore();
+      if (session) {
+        for (const c of Object.values(pending.cases)) {
+          if (!c.sample && normEmail(c.intake.email) === normEmail(session.email)) {
+            local.cases[c.id] ??= c;
+            local.activeId ??= c.id;
+          }
+        }
+      }
+      try {
+        if (authError) throw new Error("session_unavailable");
+        if (session) {
+          const response = await fetch("/api/case", { cache: "no-store", signal: controller.signal });
+          if (!response.ok) throw new Error("load_failed");
+          const data = await response.json() as { cases: SavedCase[] };
+          if (cancelled) return;
+          const writer = new CaseSync(async (state, revision) => {
+            if (identity.current !== accountId) throw new Error("account_changed");
+            const response = await fetch("/api/case", {
+              method: "PUT", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ state, revision }),
+            });
+            if (!response.ok) throw new Error(response.status === 409 ? "conflict" : "save_failed");
+            const saved = await response.json();
+            if (identity.current === accountId) setStore((st) => ({ ...st, savedIds: [...new Set([...(st.savedIds ?? []), state.id])] }));
+            return saved;
+          });
+          writer.hydrate(data.cases);
+          // Server copies win; only genuinely unsaved local drafts are adopted.
+          const cases = mergeSavedCases(local.cases, local.savedIds ?? [], data.cases);
+          const remoteIds = new Set(data.cases.map((row) => row.state.id));
+          local = { session: { email: session.email }, savedIds: [...remoteIds], cases, activeId: local.activeId && cases[local.activeId] ? local.activeId : data.cases[0]?.state.id ?? null };
+          sync.current = writer;
+          // A draft is transferred once, so deleting it remotely cannot resurrect it later.
+          for (const id of Object.keys(pending.cases)) if (cases[id] && !pending.cases[id].sample) delete pending.cases[id];
+          try {
+            window.localStorage.setItem(key, JSON.stringify(local));
+            window.localStorage.setItem(`${KEY}:guest`, JSON.stringify(pending));
+          } catch { /* Preserve the guest copy if the transfer could not be stored. */ }
+        }
+        if (!cancelled) { setStore(local); setSaveStatus(session ? "saved" : "device"); }
+      } catch {
+        if (!cancelled) { setStore({ ...local, session: session ? { email: session.email } : null }); setSaveStatus("error"); }
+      } finally {
+        if (!cancelled) setReadyAccount(accountId);
+      }
     }
-    setReady(true);
-    const pending = timers.current;
-    return () => pending.forEach((t) => window.clearTimeout(t));
-  }, []);
+    void load();
+    return () => { cancelled = true; controller.abort(); };
+  }, [accountId, session?.email, isPending, authError, reload]);
 
+  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
   useEffect(() => {
     if (!ready) return;
+    try { window.localStorage.setItem(`${KEY}:${accountId}`, JSON.stringify({ ...store, session: null })); }
+    catch { if (!session) setSaveStatus("error"); }
+  }, [store, ready, accountId]);
+
+  const saveNow = useCallback(async () => {
+    const writer = sync.current;
+    const owner = identity.current;
+    if (!writer) throw new Error("Sign in and reload your cases before saving.");
+    setSaveStatus("saving");
     try {
-      window.localStorage.setItem(KEY, JSON.stringify(store));
-    } catch {
-      // Storage full or blocked.
+      for (const c of Object.values(latest.current.cases)) if (!c.sample) await writer.save(c);
+      if (identity.current === owner) setSaveStatus(Object.values(latest.current.cases).some((c) => writer.pending(c)) ? "saving" : "saved");
+    } catch (error) {
+      if (identity.current === owner) setSaveStatus(error instanceof Error && error.message === "conflict" ? "conflict" : "error");
+      throw error;
     }
-  }, [store, ready]);
+  }, []);
+  useEffect(() => {
+    if (!ready || !sync.current) return;
+    if (!Object.values(store.cases).some((c) => sync.current!.pending(c))) return;
+    setSaveStatus("saving");
+    const timer = window.setTimeout(() => { void saveNow().catch(() => {}); }, 650);
+    return () => window.clearTimeout(timer);
+  }, [store.cases, ready, saveNow]);
+  const reloadCases = useCallback(() => setReload((n) => n + 1), []);
 
   const active = store.activeId ? store.cases[store.activeId] : undefined;
   const state = active ?? EMPTY_CASE;
@@ -351,9 +361,8 @@ export function CaseProvider({ children }: { children: ReactNode }) {
   const startDraft = useCallback((prefill?: Partial<Intake>, fresh?: boolean) => {
     setStore((st) => {
       const cases = { ...st.cases };
-      if (fresh) for (const c of Object.values(cases)) if (!c.complete) delete cases[c.id];
       const activeCase = st.activeId ? cases[st.activeId] : undefined;
-      let draft = activeCase && !activeCase.complete ? activeCase : latestIncomplete(cases);
+      let draft = fresh ? undefined : activeCase && !activeCase.complete ? activeCase : latestIncomplete(cases);
       if (!draft) {
         const id = uid();
         draft = {
@@ -369,46 +378,46 @@ export function CaseProvider({ children }: { children: ReactNode }) {
 
   const openCase = useCallback((id: string) => setStore((st) => (st.cases[id] ? { ...st, activeId: id } : st)), []);
 
-  const deleteCase = useCallback(
-    (id: string) =>
-      setStore((st) => {
-        const cases = { ...st.cases };
-        delete cases[id];
-        return { ...st, cases, activeId: st.activeId === id ? null : st.activeId };
-      }),
-    [],
-  );
+  const deleteCase = useCallback((id: string) => {
+    const remove = async () => {
+      const c = latest.current.cases[id];
+      if (!c) return;
+      try {
+        if (!c.sample && session) {
+          const writer = sync.current;
+          if (!writer) throw new Error("not_ready");
+          await writer.remove(id, async (revision) => {
+            if (revision !== null) {
+              const response = await fetch(`/api/case?id=${id}&revision=${revision}`, { method: "DELETE" });
+              if (!response.ok) throw new Error(response.status === 409 ? "conflict" : "delete_failed");
+            }
+          });
+        }
+        setStore((st) => {
+          const cases = { ...st.cases };
+          delete cases[id];
+          return { ...st, cases, savedIds: st.savedIds?.filter((saved) => saved !== id), activeId: st.activeId === id ? null : st.activeId };
+        });
+      } catch (error) { setSaveStatus(error instanceof Error && error.message === "conflict" ? "conflict" : "error"); }
+    };
+    void remove();
+  }, [session?.id]);
 
-  const login = useCallback(
-    (email: string) => {
-      const e = normEmail(email);
-      const found = Object.values(store.cases)
-        .filter((c) => ownedBy(c, e))
-        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-      if (found.length > 0) {
-        setStore((st) => ({ ...st, session: { email: e }, activeId: found.length === 1 ? found[0].id : null }));
-      }
-      return found;
-    },
-    [store.cases],
-  );
-
-  const signIn = useCallback(
-    (email: string) => setStore((st) => ({ ...st, session: { email: normEmail(email) } })),
-    [],
-  );
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const result = await authClient.signOut();
+    if (result.error) { setSaveStatus("error"); return; }
     setChatOpen(false);
-    setStore((st) => ({ ...st, session: null, activeId: null }));
+    document.cookie = "bv_demo=; Path=/; Max-Age=0; SameSite=Lax";
+    setStore(emptyStore());
   }, []);
 
   const loadSample = useCallback(() => {
+    document.cookie = "bv_demo=1; Path=/; SameSite=Lax; Max-Age=86400";
     setStore((st) => {
       const id = uid();
       const email = st.session?.email ?? "omar@example.com";
       return {
         ...st,
-        session: st.session ?? { email },
         activeId: id,
         cases: { ...st.cases, [id]: sampleState(id, email) },
       };
@@ -446,13 +455,9 @@ export function CaseProvider({ children }: { children: ReactNode }) {
     [updateCase],
   );
 
-  const myCases = useMemo(() => {
-    const email = store.session?.email;
-    if (!email) return [];
-    return Object.values(store.cases)
-      .filter((c) => ownedBy(c, email))
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  }, [store.cases, store.session]);
+  const myCases = useMemo(() => Object.values(store.cases)
+    .filter((c) => c.complete && (!!session || c.sample))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [store.cases, session?.id]);
 
   const draft = useMemo(() => {
     const d = latestIncomplete(store.cases);
@@ -464,7 +469,7 @@ export function CaseProvider({ children }: { children: ReactNode }) {
       state,
       hasActive: !!active,
       ready,
-      session: store.session,
+      session,
       myCases,
       draft,
       update,
@@ -473,8 +478,9 @@ export function CaseProvider({ children }: { children: ReactNode }) {
       startDraft,
       openCase,
       deleteCase,
-      login,
-      signIn,
+      saveStatus,
+      saveNow,
+      reloadCases,
       logout,
       loadSample,
       chatOpen,
@@ -483,7 +489,7 @@ export function CaseProvider({ children }: { children: ReactNode }) {
       closeChat,
       sendChat,
     }),
-    [state, active, ready, store.session, myCases, draft, update, patch, setIntake, startDraft, openCase, deleteCase, login, signIn, logout, loadSample, chatOpen, chatDraft, openChat, closeChat, sendChat],
+    [state, active, ready, session?.id, session?.email, saveStatus, saveNow, reloadCases, myCases, draft, update, patch, setIntake, startDraft, openCase, deleteCase, logout, loadSample, chatOpen, chatDraft, openChat, closeChat, sendChat],
   );
 
   return <CaseContext.Provider value={value}>{children}</CaseContext.Provider>;
@@ -499,13 +505,17 @@ export function useCase(): Ctx {
 export function useCaseModel() {
   const { state } = useCase();
   const { intake, chosenId, chosenAt, owners } = state;
+  const flight = selectedFlightFor(state);
+  const stay = selectedStayFor(state);
 
   return useMemo(() => {
     const matched = matchedOptions(intake);
     const all = evaluateAll(intake);
-    const chosen = all.find((o) => o.hospital.id === chosenId) ?? null;
-    const plan = chosen && chosenAt ? buildPlan(intake, chosen, chosenAt) : null;
+    const baseChosen = all.find((o) => o.hospital.id === chosenId) ?? null;
+    const flightChosen = baseChosen && flight ? applyFlightCost(baseChosen, flight.usdAmount ?? flight.amount) : baseChosen;
+    const chosen = flightChosen && stay ? applyStayCost(flightChosen, stay.usdAmount) : flightChosen;
+    const plan = chosen && chosenAt ? buildPlan(intake, chosen, chosenAt, flight && state.travelSchedule ? { appointment: state.travelSchedule.appointment, out: flight.out, back: flight.back } : undefined) : null;
     const impact = chosen && plan ? planImpact(chosen, plan, owners) : null;
     return { options: matched.options, widened: matched.widened, chosen, plan, impact };
-  }, [intake, chosenId, chosenAt, owners]);
+  }, [intake, chosenId, chosenAt, owners, flight, stay, state.travelSchedule]);
 }

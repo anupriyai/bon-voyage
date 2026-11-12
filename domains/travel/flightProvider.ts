@@ -1,7 +1,7 @@
 import type { Fare } from "@/domains/travel/fare";
 
 export interface Passenger {
-  type: "adult" | "child";
+  type: "adult" | "child" | "infant_without_seat";
   /** Required by airlines for children. */
   age?: number;
 }
@@ -25,6 +25,7 @@ export interface ReturnSearch {
 
 /** A source of bookable fares. Duffel in real use, the mock when no token is set. */
 export interface FlightProvider {
+  readonly mode?: "sample" | "test" | "live";
   readonly name: Fare["provider"];
   searchOneWay(q: OneWaySearch): Promise<Fare[]>;
   searchReturn(q: ReturnSearch): Promise<Fare[]>;

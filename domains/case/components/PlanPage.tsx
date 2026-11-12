@@ -1,5 +1,6 @@
 "use client";
 
+import { selectedFlightFor, selectedStayFor } from "@/domains/case/model/caseState";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AssistantPrompt, ProgressRow, StepDots } from "@/shared/ui/Assistant";
@@ -20,6 +21,8 @@ export default function PlanPage() {
   const { chosen: o, plan, impact } = useCaseModel();
   const { money, signed, cur } = useCurrency();
   const i = state.intake;
+  const selectedFlight = selectedFlightFor(state);
+  const selectedStay = selectedStayFor(state);
   const approved = !!state.planApprovedAt;
 
   const [step, setStep] = useState(approved ? 3 : 0);
@@ -115,18 +118,24 @@ export default function PlanPage() {
     <main className="wrap flow-main">
       <section aria-label="Assistant" className="flow-section">
         <AssistantPrompt ack={P.ack} title={P.title} help={P.help} status={status} busy={busy} mode={busy ? "think" : "idle"}>
+          <p><Link href="/case/stays" className="btn btn-outline">Compare stays</Link></p>
+          {selectedStay && <p style={{ fontSize: 14, color: "var(--muted)" }}>Selected stay: {selectedStay.name}. {selectedStay.dueAtAccommodation === null ? "Additional property fees are unknown and are not included in the estimate." : `Due at accommodation: ${selectedStay.dueAtAccommodation} ${selectedStay.dueCurrency}, included using planning exchange rates.`}</p>}
+          {selectedFlight?.searchId && <p><Link href="/case/booking" className="btn btn-outline">Review test flight booking</Link></p>}
+          <p style={{ fontSize: 14, color: "var(--muted)" }}>Changes here are planning requests. A coordinator must confirm changes to booked flights and stays.</p>
+          {selectedFlight && <p style={{ fontSize: 14, color: "var(--muted)" }}>Selected flights and planning dates are included using planning currency estimates. Flight availability and clinical clearance require confirmation.</p>}
+          {step === 0 && o.route.mode === "flight" && <p><Link href="/case/flights" className="btn btn-outline">Compare flights</Link></p>}
           {step === 0 && (
             <div style={{ marginTop: 22, display: "flex", flexWrap: "wrap", gap: 16, alignItems: "stretch" }}>
-              <div style={{ flex: "1 1 320px", minWidth: 0, maxWidth: 440, position: "relative", borderRadius: 28, background: "rgba(8,22,30,0.35)", border: "1px solid rgba(247,244,236,0.1)", padding: 6 }}>
+              <div style={{ flex: "1 1 320px", minWidth: 0, maxWidth: 440, position: "relative", borderRadius: 28, background: "var(--surface-tint)", border: "1px solid rgba(20,45,59,0.1)", padding: 6 }}>
                 <Globe routes={[{ a: [origin.lon ?? 35.85, origin.lat ?? 32.55], b: [o.hospital.lon, o.hospital.lat], aLabel: originCity, bLabel: o.hospital.city }]} active={0} plane={fl} showAll={false} />
-                <span style={{ position: "absolute", left: 16, bottom: 14, padding: "6px 12px", borderRadius: 999, background: "rgba(20,45,59,0.85)", border: "1px solid rgba(247,244,236,0.18)", fontSize: 14 }}>{o.route.label}</span>
+                <span style={{ position: "absolute", left: 16, bottom: 14, padding: "6px 12px", borderRadius: 999, background: "rgba(255,255,255,0.94)", color: "var(--navy)", border: "1px solid rgba(20,45,59,0.18)", fontSize: 14 }}>{o.route.label}</span>
               </div>
               <ol style={{ flex: "1 1 220px", minWidth: 0, margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
                 {keyDates.map((k, n) => (
                   <li key={k.label} className="bv-in card-d" style={{ padding: "14px 16px", borderRadius: 18, animationDelay: `${0.1 + n * 0.1}s` }}>
                     <div style={{ fontSize: 13, color: "var(--muted)" }}>{k.label}</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.01em" }}>{day(k.value)}</div>
-                    <div style={{ fontSize: 13, color: "var(--mint-soft)" }}>{k.note}</div>
+                    <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.01em" }}>{day(k.value)}</div>
+                    <div style={{ fontSize: 13, color: "var(--teal-ink)" }}>{k.note}</div>
                   </li>
                 ))}
               </ol>
@@ -140,11 +149,11 @@ export default function PlanPage() {
                   const self = ownerOf(t, state.owners) === "self";
                   const d = taskDelta(t).exp;
                   return (
-                    <li key={t.id} className="bv-in" style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", padding: "12px 14px", borderRadius: 16, background: "rgba(247,244,236,0.05)", border: "1px solid rgba(247,244,236,0.1)", boxShadow: `inset 3px 0 0 ${self ? "var(--sand)" : "var(--mint)"}`, animationDelay: `${n * 0.05}s` }}>
+                    <li key={t.id} className="bv-in" style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", padding: "12px 14px", borderRadius: 16, background: "rgba(20,45,59,0.05)", border: "1px solid rgba(20,45,59,0.1)", boxShadow: `inset 3px 0 0 ${self ? "var(--sand)" : "var(--mint)"}`, animationDelay: `${n * 0.05}s` }}>
                       <div style={{ flex: "1 1 260px", minWidth: 0 }}>
                         <div style={{ fontSize: 13, color: "var(--muted)" }}>{PHASES.find((p) => p.id === t.phase)?.label} · due {day(t.due)}</div>
-                        <div style={{ fontWeight: 700 }}>{t.title}</div>
-                        <div className={self ? "bv-swap" : ""} style={{ fontSize: 13, color: self ? "var(--sand-soft)" : "var(--muted)" }}>
+                        <div style={{ fontWeight: 500 }}>{t.title}</div>
+                        <div className={self ? "bv-swap" : ""} style={{ fontSize: 13, color: self ? "var(--rust)" : "var(--muted)" }}>
                           {self ? `${d === 0 ? "Same cost" : d > 0 ? `About ${money(d)} more` : `About ${money(-d)} less`} · ~${t.hours} hr of your time · ${t.whySelf}` : t.whyBv}
                         </div>
                       </div>
@@ -156,7 +165,7 @@ export default function PlanPage() {
                   );
                 })}
               </ul>
-              <p key={flash} className={flash ? "bv-flash" : ""} style={{ margin: "14px 0 0", padding: "12px 16px", borderRadius: 16, background: "rgba(247,244,236,0.06)", fontSize: 15 }}>
+              <p key={flash} className={flash ? "bv-flash" : ""} style={{ margin: "14px 0 0", padding: "12px 16px", borderRadius: 16, background: "rgba(20,45,59,0.06)", fontSize: 15 }}>
                 <strong>Effect on the estimate:</strong>{" "}
                 {impact.selfCount === 0 ? "none. Bon Voyage handles every step." : `between ${signed(impact.delta.low)} and ${signed(impact.delta.high)}, plus about ${impact.hours} hours of your time.`}
               </p>
@@ -178,7 +187,7 @@ export default function PlanPage() {
               </form>
               <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {CHANGE_CHIPS.map((c) => (
-                  <button key={c.id} type="button" className="bv-chip" onClick={() => { setAskText(c.label); propose(c.id, c.label); }} style={{ minHeight: 42, padding: "0 16px", borderRadius: 999, border: "1.5px solid rgba(247,244,236,0.2)", background: "rgba(247,244,236,0.04)", color: "var(--ivory)", fontSize: 15, cursor: "pointer" }}>
+                  <button key={c.id} type="button" className="bv-chip" onClick={() => { setAskText(c.label); propose(c.id, c.label); }} style={{ minHeight: 42, padding: "0 16px", borderRadius: 999, border: "1.5px solid rgba(20,45,59,0.2)", background: "rgba(20,45,59,0.04)", color: "var(--navy)", fontSize: 15, cursor: "pointer" }}>
                     “{c.label}”
                   </button>
                 ))}
@@ -193,29 +202,29 @@ export default function PlanPage() {
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-start", justifyContent: "space-between" }}>
                     <div>
                       <div className="eyebrow" style={{ letterSpacing: "0.08em", color: "var(--rust)" }}>Proposed change · AI draft</div>
-                      <div style={{ fontSize: 20, fontWeight: 800, marginTop: 2 }}>“{prop.ask}”</div>
+                      <div style={{ fontSize: 20, fontWeight: 500, marginTop: 2 }}>“{prop.ask}”</div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 18, fontWeight: 800 }}>
+                      <div style={{ fontSize: 18, fontWeight: 500 }}>
                         <span style={{ color: "var(--ink-mute)", textDecoration: "line-through", fontWeight: 600 }}>{money(baseT)}</span> → {money(baseT + sum(prop))}
                       </div>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: sum(prop) > 0 ? "var(--rust)" : "var(--teal-ink)" }}>{signed(sum(prop))}</div>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: sum(prop) > 0 ? "var(--rust)" : "var(--teal-ink)" }}>{signed(sum(prop))}</div>
                     </div>
                   </div>
                   <ul style={{ margin: "14px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
                     {prop.rows.map((r, n) => (
                       <li key={r.item} className="bv-swap" style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "baseline", padding: "10px 12px", borderRadius: 12, background: "#fff", animationDelay: `${n * 0.12}s` }}>
-                        <span style={{ width: 140, flex: "none", fontWeight: 700 }}>{r.item}</span>
+                        <span style={{ width: 140, flex: "none", fontWeight: 500 }}>{r.item}</span>
                         <span style={{ flex: 1, minWidth: 180, color: "var(--ink-soft)" }}>
-                          {r.from} <span aria-hidden="true" style={{ color: "var(--teal)", fontWeight: 800 }}>→</span> <strong style={{ color: "var(--navy)" }}>{r.to}</strong>
+                          {r.from} <span aria-hidden="true" style={{ color: "var(--teal)", fontWeight: 500 }}>→</span> <strong style={{ color: "var(--navy)" }}>{r.to}</strong>
                         </span>
-                        <span style={{ width: 100, flex: "none", textAlign: "right", fontWeight: 800 }}>{signed(r.cost)}</span>
+                        <span style={{ width: 100, flex: "none", textAlign: "right", fontWeight: 500 }}>{signed(r.cost)}</span>
                       </li>
                     ))}
                   </ul>
                   <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", fontSize: 14 }}>
                     <strong>Waiting on:</strong>
-                    {prop.pending.map((w) => <span key={w} style={{ fontSize: 13, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: "#FCE7D6", color: "var(--rust)" }}>{w}</span>)}
+                    {prop.pending.map((w) => <span key={w} style={{ fontSize: 13, fontWeight: 500, padding: "3px 10px", borderRadius: 999, background: "#FCE7D6", color: "var(--rust)" }}>{w}</span>)}
                   </div>
                   <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--ink-mute)" }}>{prop.note}</p>
                   <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -255,7 +264,7 @@ export default function PlanPage() {
                   <Check size={18} style={{ color: "var(--mint)" }} />
                   <span style={{ flex: "1 1 220px" }}>{toast.text}</span>
                   {toast.undo && (
-                    <button type="button" className="btn btn-outline btn-sm" style={{ minHeight: 40, borderColor: "rgba(247,244,236,0.35)" }} onClick={() => { update((s) => ({ ...s, approved: s.approved.slice(0, -1) })); setFlash((f) => f + 1); setToast({ text: "Undone. Your draft is back to how it was.", undo: false, n: toast.n + 1 }); }}>
+                    <button type="button" className="btn btn-outline btn-sm" style={{ minHeight: 40, borderColor: "rgba(20,45,59,0.35)" }} onClick={() => { update((s) => ({ ...s, approved: s.approved.slice(0, -1) })); setFlash((f) => f + 1); setToast({ text: "Undone. Your draft is back to how it was.", undo: false, n: toast.n + 1 }); }}>
                       Undo
                     </button>
                   )}
@@ -274,37 +283,37 @@ export default function PlanPage() {
                       {o.lines.map((l, n) => (
                         <li key={l.id} className="bv-in" style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "7px 0", borderBottom: "1px solid rgba(20,45,59,0.08)", fontSize: 15, animationDelay: `${n * 0.06}s` }}>
                           <span style={{ color: "var(--ink-soft)" }}>{l.label}</span>
-                          <span style={{ fontWeight: 700 }}>{money(l.expected)}</span>
+                          <span style={{ fontWeight: 500 }}>{money(l.expected)}</span>
                         </li>
                       ))}
                       {impact.selfCount > 0 && (
                         <li style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "7px 0", borderBottom: "1px solid rgba(20,45,59,0.08)", color: "var(--rust)", fontSize: 15 }}>
                           <span>{impact.selfCount} steps you handle</span>
-                          <span style={{ fontWeight: 700 }}>{signed(impact.delta.exp)}</span>
+                          <span style={{ fontWeight: 500 }}>{signed(impact.delta.exp)}</span>
                         </li>
                       )}
                       {applied.map((a) => (
                         <li key={a.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "7px 0", borderBottom: "1px solid rgba(20,45,59,0.08)", color: "var(--rust)", fontSize: 15 }}>
                           <span>{a.label}</span>
-                          <span style={{ fontWeight: 700 }}>{signed(a.amount)}</span>
+                          <span style={{ fontWeight: 500 }}>{signed(a.amount)}</span>
                         </li>
                       ))}
                     </ul>
                     <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                       <strong>Expected total</strong>
-                      <span style={{ fontSize: 28, fontWeight: 800 }}>{money(baseT)}</span>
+                      <span style={{ fontSize: 28, fontWeight: 500 }}>{money(baseT)}</span>
                     </div>
                     <div style={{ fontSize: 13, color: "var(--ink-mute)", textAlign: "right" }}>
                       Range {money(impact.low + adjTotal)}–{money(impact.high + adjTotal).replace(/^[^0-9]+/, "")} · plus {money(COORDINATION_FEE)} coordination fee
                     </div>
                   </div>
                   <div className="card-d" style={{ flex: "1 1 260px", minWidth: 0 }}>
-                    <div className="eyebrow" style={{ color: "var(--sand)" }}>Deposit due now</div>
-                    <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.1 }}>{money(deposit)}</div>
-                    <div style={{ fontSize: 14, color: "#dce6e2" }}>Paid directly to {o.hospital.name}. Bon Voyage never holds the money.</div>
+                    <div className="eyebrow" style={{ color: "var(--rust)" }}>Deposit due now</div>
+                    <div style={{ fontSize: 38, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.1 }}>{money(deposit)}</div>
+                    <div style={{ fontSize: 14, color: "var(--ink-soft)" }}>Paid directly to {o.hospital.name}. Bon Voyage never holds the money.</div>
                     <div role="group" aria-label="Payment method" style={{ marginTop: 14, display: "flex", gap: 6, flexWrap: "wrap" }}>
                       {(["card", "bank"] as const).map((m) => (
-                        <button key={m} type="button" onClick={() => setMethod(m)} aria-pressed={method === m} style={{ minHeight: 42, padding: "0 14px", borderRadius: 999, fontSize: 14, fontWeight: 700, cursor: "pointer", ...(method === m ? { border: 0, background: "var(--ivory)", color: "var(--navy)" } : { border: "1.5px solid rgba(247,244,236,0.25)", background: "transparent", color: "var(--ivory)" }) }}>
+                        <button key={m} type="button" onClick={() => setMethod(m)} aria-pressed={method === m} style={{ minHeight: 42, padding: "0 14px", borderRadius: 999, fontSize: 14, fontWeight: 500, cursor: "pointer", ...(method === m ? { border: 0, background: "var(--surface-raised)", color: "var(--navy)" } : { border: "1.5px solid rgba(20,45,59,0.25)", background: "transparent", color: "var(--navy)" }) }}>
                           {m === "card" ? "Card (sample)" : "Bank transfer (sample)"}
                         </button>
                       ))}
@@ -325,7 +334,7 @@ export default function PlanPage() {
                     <span className="check-done bv-pop" style={{ position: "relative", width: 64, height: 64 }}><Check size={30} style={{ color: "#fff" }} /></span>
                   </span>
                   <div style={{ flex: "1 1 300px" }}>
-                    <div className="bv-in" style={{ fontSize: 22, fontWeight: 800 }}>Plan approved</div>
+                    <div className="bv-in" style={{ fontSize: 22, fontWeight: 500 }}>Plan approved</div>
                     <div className="bv-in" style={{ color: "var(--ink-soft)", animationDelay: ".1s" }}>
                       Deposit of {money(deposit)} recorded as a simulation. No money moved and nothing was booked. {firstName(COORDINATOR.name)} will confirm each arrangement with you.
                     </div>
@@ -363,37 +372,37 @@ export default function PlanPage() {
           <h2>Your plan</h2>
           <span className={`pill ${pay >= 5 ? "" : "pill-wait"}`} style={{ fontSize: 12, padding: "3px 10px", ...(pay >= 5 ? { background: "var(--mint)", color: "var(--navy)" } : {}) }}>{pay >= 5 ? "Approved" : "Draft"}</span>
         </div>
-        <div style={{ marginTop: 12, fontSize: 20, fontWeight: 800 }}>{o.hospital.name}</div>
+        <div style={{ marginTop: 12, fontSize: 20, fontWeight: 500 }}>{o.hospital.name}</div>
         <div style={{ fontSize: 14, color: "var(--muted)" }}>{o.hospital.city} · {o.route.label}</div>
-        <div key={flash} className={flash ? "bv-flash" : ""} style={{ marginTop: 16, padding: "14px 16px", borderRadius: 18, background: "rgba(247,244,236,0.06)" }}>
+        <div key={flash} className={flash ? "bv-flash" : ""} style={{ marginTop: 16, padding: "14px 16px", borderRadius: 18, background: "rgba(20,45,59,0.06)" }}>
           <div style={{ fontSize: 13, color: "var(--muted)" }}>Expected total</div>
-          <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-0.02em" }}>{money(baseT)}</div>
+          <div style={{ fontSize: 30, fontWeight: 500, letterSpacing: "-0.02em" }}>{money(baseT)}</div>
           <div style={{ fontSize: 13, color: "var(--muted)" }}>Deposit {money(deposit)} · fee {money(COORDINATION_FEE)}</div>
         </div>
         <dl style={{ margin: "16px 0 0", display: "flex", flexDirection: "column", gap: 8, fontSize: 15 }}>
           {keyDates.map((k) => (
             <div key={`${k.label}${shift}`} className={shift && k.moves ? "bv-flash" : ""} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "2px 6px", borderRadius: 8 }}>
               <dt style={{ color: "var(--muted)" }}>{k.label}</dt>
-              <dd style={{ margin: 0, fontWeight: 700 }}>{day(k.value)}</dd>
+              <dd style={{ margin: 0, fontWeight: 500 }}>{day(k.value)}</dd>
             </div>
           ))}
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "2px 6px" }}>
             <dt style={{ color: "var(--muted)" }}>Travellers</dt>
-            <dd style={{ margin: 0, fontWeight: 700 }}>{2 + extra}</dd>
+            <dd style={{ margin: 0, fontWeight: 500 }}>{2 + extra}</dd>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "2px 6px" }}>
             <dt style={{ color: "var(--muted)" }}>Steps you handle</dt>
-            <dd style={{ margin: 0, fontWeight: 700 }}>{impact.selfCount || "None"}</dd>
+            <dd style={{ margin: 0, fontWeight: 500 }}>{impact.selfCount || "None"}</dd>
           </div>
         </dl>
         {applied.length > 0 && (
           <div className="bv-swap" style={{ marginTop: 14 }}>
-            <div className="eyebrow" style={{ color: "var(--sand)" }}>Draft changes</div>
+            <div className="eyebrow" style={{ color: "var(--rust)" }}>Draft changes</div>
             <ul style={{ margin: "6px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4, fontSize: 14 }}>
               {applied.map((a) => (
                 <li key={a.id} style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
                   <span>{a.label}</span>
-                  <span style={{ fontWeight: 700 }}>{signed(a.amount)}</span>
+                  <span style={{ fontWeight: 500 }}>{signed(a.amount)}</span>
                 </li>
               ))}
             </ul>

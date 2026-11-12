@@ -1,7 +1,7 @@
 // A patient's case, its encrypted clinical details, and the people travelling. All three are audited.
 import { sql } from "drizzle-orm";
-import { customType, date, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { user } from "@/domains/account/index";
+import { customType, date, index, integer, jsonb, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { user } from "@/domains/account/schema";
 
 const at = (name: string) => timestamp(name, { withTimezone: true });
 const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
@@ -14,6 +14,7 @@ export const cases = pgTable("cases", {
   status: text("status", { enum: ["draft", "matching", "planning", "booked", "travelling", "done"] })
     .notNull()
     .default("draft"),
+  revision: integer("revision").notNull().default(0),
   originCity: text("origin_city"),
   hospitalId: text("hospital_id"),
   appointmentDate: date("appointment_date"),
@@ -50,3 +51,26 @@ export const travelers = pgTable("travelers", {
   createdAt: at("created_at").notNull().defaultNow(),
   updatedAt: at("updated_at").notNull().defaultNow(),
 });
+
+
+/** A validated flight query; parameters are redacted from the audit trail. */
+export const searches = pgTable("searches", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  caseId: uuid("case_id").notNull().references(() => cases.id, { onDelete: "cascade" }),
+  parameters: jsonb("parameters").$type<Record<string, unknown>>().notNull(),
+  createdBy: text("created_by").notNull().references(() => user.id),
+  createdAt: at("created_at").notNull().defaultNow(),
+}, (table) => [index("searches_case_created_idx").on(table.caseId, table.createdAt)]);
+
+/** Immutable, non-personal provider data. No cascading FK: snapshots survive deletion of their search. */
+export const fareSnapshots = pgTable("fare_snapshots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  searchId: uuid("search_id").notNull(),
+  provider: text("provider").notNull(),
+  offerId: text("offer_id").notNull(),
+  slices: jsonb("slices").$type<unknown[]>().notNull(),
+  total: numeric("total", { precision: 14, scale: 2 }).notNull(),
+  currency: text("currency").notNull(),
+  fetchedAt: at("fetched_at").notNull().defaultNow(),
+  expiresAt: at("expires_at").notNull(),
+}, (table) => [index("fare_snapshots_search_idx").on(table.searchId)]);

@@ -8,6 +8,7 @@ export interface Segment {
   departAt: string;
   arriveAt: string;
   carrier: string;
+  carrierName?: string;
   flightNumber: string;
 }
 
@@ -29,4 +30,8 @@ export interface Fare {
   expiresAt: string | null;
   /** The airline lets us hold the seat and pay later. */
   holdable: boolean;
+  passengerIds?: string[];
+  passengerTypes?: string[];
+  voidWindowEndsAt?: string | null;
+  conditions?: { refund: string; change: string };
 }

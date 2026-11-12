@@ -195,10 +195,10 @@ export default function RecordsPage() {
 
   const mgr = i.forWhom === "self" ? null : firstName(i.managerName) || "You";
   const people = [
-    ...(mgr ? [{ initials: mgr.slice(0, 2).toUpperCase(), name: `${mgr} (you)`, note: "Manages the case", bg: "var(--ivory)", lock: "Owner" }] : []),
+    ...(mgr ? [{ initials: mgr.slice(0, 2).toUpperCase(), name: `${mgr} (you)`, note: "Manages the case", bg: "var(--navy)", lock: "Owner" }] : []),
     { initials: (patient.slice(0, 1) + (i.patientName.split(" ")[1]?.[0] ?? "")).toUpperCase(), name: i.forWhom === "self" ? "You" : patient, note: i.patientSeesAll ? "Can see everything in the case" : "Sees only what you share", bg: "var(--mint)", toggle: i.forWhom !== "self" },
     { initials: COORDINATOR.initials, name: COORDINATOR.name, note: "Your coordinator, needed to arrange care", bg: "var(--sand)", lock: "Always" },
-    { initials: "H+", name: "Hospitals", note: "Only the hospital you approve, only when you approve", bg: "rgba(247,244,236,0.15)", lock: "After you approve", light: true },
+    { initials: "H+", name: "Hospitals", note: "Only the hospital you approve, only when you approve", bg: "rgba(20,45,59,0.15)", lock: "After you approve", light: true },
   ];
 
   return (
@@ -213,12 +213,12 @@ export default function RecordsPage() {
                   e.preventDefault();
                   addReal(e.dataTransfer.files);
                 }}
-                style={{ marginTop: 24, padding: "28px 24px", borderRadius: 28, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", transition: "background-color .4s ease, border-color .4s ease", border: `2px dashed ${working ? "var(--mint)" : "rgba(247,244,236,0.25)"}`, background: working ? "rgba(111,208,195,0.08)" : "rgba(247,244,236,0.04)" }}
+                style={{ marginTop: 24, padding: "28px 24px", borderRadius: 28, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", transition: "background-color .4s ease, border-color .4s ease", border: `2px dashed ${working ? "var(--mint)" : "rgba(20,45,59,0.25)"}`, background: working ? "rgba(111,208,195,0.08)" : "rgba(20,45,59,0.04)" }}
               >
                 <div aria-hidden="true" className="bv-bob" style={{ width: 60, height: 60, borderRadius: 20, background: "rgba(111,208,195,0.16)", color: "var(--mint)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Upload size={28} />
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 700, marginTop: 12 }}>Drop files here</div>
+                <div style={{ fontSize: 20, fontWeight: 500, marginTop: 12 }}>Drop files here</div>
                 <div style={{ fontSize: 15, color: "var(--muted)" }}>PDFs, photos or scans · up to 50 at once</div>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginTop: 16 }}>
                   <button type="button" className="btn btn-primary bv-btn" onClick={addSample} aria-disabled={working}>
@@ -243,19 +243,19 @@ export default function RecordsPage() {
                       filed: ["Filed", "pill-ok", f.found, `${f.date}${f.ar ? " · translated" : ""}`],
                     }[p.k];
                     return (
-                      <li key={f.name + f.start} className="bv-in" style={{ display: "flex", gap: 12, alignItems: "center", padding: "12px 14px", borderRadius: 16, background: "rgba(247,244,236,0.05)", border: `1px solid ${p.k === "filed" ? "rgba(111,208,195,0.35)" : "rgba(247,244,236,0.1)"}`, animationDelay: `${k * 0.06}s` }}>
-                        <span aria-hidden="true" style={{ position: "relative", width: 38, height: 46, flex: "none", borderRadius: 9, color: "#fff", fontSize: 10, fontWeight: 800, display: "inline-flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 5, overflow: "hidden", background: f.ext === "PDF" ? "#C85A3C" : "#3C7FA6" }}>
+                      <li key={f.name + f.start} className="bv-in" style={{ display: "flex", gap: 12, alignItems: "center", padding: "12px 14px", borderRadius: 16, background: "rgba(20,45,59,0.05)", border: `1px solid ${p.k === "filed" ? "rgba(111,208,195,0.35)" : "rgba(20,45,59,0.1)"}`, animationDelay: `${k * 0.06}s` }}>
+                        <span aria-hidden="true" style={{ position: "relative", width: 38, height: 46, flex: "none", borderRadius: 9, color: "#fff", fontSize: 10, fontWeight: 500, display: "inline-flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 5, overflow: "hidden", background: f.ext === "PDF" ? "#C85A3C" : "#3C7FA6" }}>
                           {f.ext}
                           {p.k === "read" && <span className="bv-scan" style={{ position: "absolute", left: 0, right: 0, height: 3, background: "var(--sand)", boxShadow: "0 0 10px 2px rgba(243,174,120,0.8)" }} />}
                         </span>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
-                            <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m[2]}</span>
+                            <span style={{ fontWeight: 500, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m[2]}</span>
                             <span className={`pill ${m[1]}`}>{m[0]}</span>
                           </div>
                           <div style={{ fontSize: 13, color: "var(--muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m[3]}</div>
-                          <div aria-hidden="true" style={{ marginTop: 6, height: 4, borderRadius: 999, background: "rgba(247,244,236,0.1)", overflow: "hidden" }}>
-                            <span style={{ display: "block", height: "100%", borderRadius: 999, width: `${Math.round((p.k === "filed" ? 1 : p.k === "queued" ? 0 : p.p) * 100)}%`, background: p.k === "filed" ? "var(--mint)" : p.k === "upload" ? "var(--ivory)" : "var(--sand)" }} />
+                          <div aria-hidden="true" style={{ marginTop: 6, height: 4, borderRadius: 999, background: "rgba(20,45,59,0.1)", overflow: "hidden" }}>
+                            <span style={{ display: "block", height: "100%", borderRadius: 999, width: `${Math.round((p.k === "filed" ? 1 : p.k === "queued" ? 0 : p.p) * 100)}%`, background: p.k === "filed" ? "var(--mint)" : p.k === "upload" ? "var(--navy)" : "var(--sand)" }} />
                           </div>
                         </div>
                       </li>
@@ -277,11 +277,11 @@ export default function RecordsPage() {
                 {actions.map((a, k) => (
                   <button key={a.id} type="button" className={`tile bv-tile bv-in${a.on ? " is-on" : ""}`} onClick={a.toggle} aria-pressed={a.on} style={{ gap: 6, padding: 18, borderRadius: 20, minHeight: 150, animationDelay: `${k * 0.08}s` }}>
                     <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, width: "100%" }}>
-                      <span style={{ fontSize: 17, fontWeight: 700 }}>{a.title}</span>
+                      <span style={{ fontSize: 17, fontWeight: 500 }}>{a.title}</span>
                       {a.on && <span className="badge bv-pop"><Check size={13} /></span>}
                     </span>
                     <span className="sub" style={{ fontSize: 15 }}>{a.sub}</span>
-                    <span style={{ marginTop: "auto", fontSize: 14, fontWeight: 700, color: a.on ? "var(--teal-ink)" : "var(--mint-soft)" }}>{a.cta}</span>
+                    <span style={{ marginTop: "auto", fontSize: 14, fontWeight: 500, color: a.on ? "var(--teal-ink)" : "var(--teal-ink)" }}>{a.cta}</span>
                   </button>
                 ))}
               </div>
@@ -292,12 +292,12 @@ export default function RecordsPage() {
                     ["allergies", "Any allergies to medicines?", ["Yes", "No", "Not sure"]],
                   ].map(([key, q, opts]) => (
                     <div key={key as string}>
-                      <div style={{ fontWeight: 700 }}>{q as string}</div>
+                      <div style={{ fontWeight: 500 }}>{q as string}</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
                         {(opts as string[]).map((o) => {
                           const on = state.health[key as string] === o;
                           return (
-                            <button key={o} type="button" aria-pressed={on} onClick={() => update((s) => ({ ...s, health: { ...s.health, [key as string]: o } }))} className="bv-chip" style={{ minHeight: 42, padding: "0 16px", borderRadius: 999, cursor: "pointer", fontWeight: 600, background: on ? "var(--ivory)" : "transparent", color: on ? "var(--navy)" : "var(--ivory)", border: `1.5px solid ${on ? "var(--ivory)" : "rgba(247,244,236,0.22)"}` }}>
+                            <button key={o} type="button" aria-pressed={on} onClick={() => update((s) => ({ ...s, health: { ...s.health, [key as string]: o } }))} className="bv-chip" style={{ minHeight: 42, padding: "0 16px", borderRadius: 999, cursor: "pointer", fontWeight: 600, background: on ? "var(--sage)" : "transparent", color: "var(--navy)", border: `1.5px solid ${on ? "var(--teal)" : "var(--line-d)"}` }}>
                               {o}
                             </button>
                           );
@@ -318,16 +318,16 @@ export default function RecordsPage() {
           {step === 2 && (
             <ul style={{ margin: "24px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10, maxWidth: 640 }}>
               {people.map((p, k) => (
-                <li key={p.name} className="bv-in" style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 18, background: "rgba(247,244,236,0.05)", border: "1px solid rgba(247,244,236,0.12)", animationDelay: `${k * 0.08}s` }}>
-                  <span className="avatar" aria-hidden="true" style={{ width: 44, height: 44, fontSize: 14, background: p.bg, color: p.light ? "var(--ivory)" : "var(--navy)" }}>
+                <li key={p.name} className="bv-in" style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 18, background: "rgba(20,45,59,0.05)", border: "1px solid rgba(20,45,59,0.12)", animationDelay: `${k * 0.08}s` }}>
+                  <span className="avatar" aria-hidden="true" style={{ width: 44, height: 44, fontSize: 14, background: p.bg, color: p.light ? "var(--navy)" : "#fff" }}>
                     {p.initials}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700 }}>{p.name}</div>
+                    <div style={{ fontWeight: 500 }}>{p.name}</div>
                     <div style={{ fontSize: 14, color: "var(--muted)" }}>{p.note}</div>
                   </div>
                   {p.toggle ? (
-                    <button type="button" role="switch" aria-checked={i.patientSeesAll} aria-label={`Let ${p.name} see everything`} onClick={() => setIntake({ patientSeesAll: !i.patientSeesAll })} style={{ position: "relative", width: 52, height: 30, flex: "none", borderRadius: 999, border: 0, cursor: "pointer", transition: "background-color .25s ease", background: i.patientSeesAll ? "var(--teal)" : "rgba(247,244,236,0.2)" }}>
+                    <button type="button" role="switch" aria-checked={i.patientSeesAll} aria-label={`Let ${p.name} see everything`} onClick={() => setIntake({ patientSeesAll: !i.patientSeesAll })} style={{ position: "relative", width: 52, height: 30, flex: "none", borderRadius: 999, border: 0, cursor: "pointer", transition: "background-color .25s ease", background: i.patientSeesAll ? "var(--teal)" : "rgba(20,45,59,0.2)" }}>
                       <span style={{ position: "absolute", top: 3, left: i.patientSeesAll ? 25 : 3, width: 24, height: 24, borderRadius: 999, background: "#fff", transition: "left .25s cubic-bezier(.2,.7,.2,1)" }} />
                     </button>
                   ) : (
@@ -367,13 +367,13 @@ export default function RecordsPage() {
       </section>
 
       <aside aria-label="Records checklist" className="panel bv-in" style={{ animationDelay: ".2s" }}>
-        <div className="eyebrow" style={{ color: "var(--sand)" }}>{i.forWhom === "self" ? "Your case" : `${patient}’s case`}</div>
-        <div style={{ fontWeight: 700, marginTop: 2 }}>
+        <div className="eyebrow" style={{ color: "var(--rust)" }}>{i.forWhom === "self" ? "Your case" : `${patient}’s case`}</div>
+        <div style={{ fontWeight: 500, marginTop: 2 }}>
           {[i.stage && i.stage !== "unsure" ? `Stage ${i.stage}` : null, i.diagnosis ? caseDx(i.diagnosis) : null, i.originCity].filter(Boolean).join(" · ")}
         </div>
         <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 16 }}>
           <svg width="78" height="78" viewBox="0 0 84 84" role="img" aria-label={`Records ${pct} percent complete`} style={{ flex: "none" }}>
-            <circle cx="42" cy="42" r="34" fill="none" stroke="rgba(247,244,236,0.12)" strokeWidth="8" />
+            <circle cx="42" cy="42" r="34" fill="none" stroke="rgba(20,45,59,0.12)" strokeWidth="8" />
             <circle cx="42" cy="42" r="34" fill="none" stroke="#6FD0C3" strokeWidth="8" strokeLinecap="round" strokeDasharray="213.6" transform="rotate(-90 42 42)" style={{ transition: "stroke-dashoffset 1s cubic-bezier(.2,.7,.2,1)", strokeDashoffset: 213.6 * (1 - pct / 100) }} />
             <text x="42" y="47" textAnchor="middle" fontSize="18" fontWeight="800" fill="#F7F4EC">{pct}%</text>
           </svg>
@@ -392,10 +392,10 @@ export default function RecordsPage() {
                 const d = itemHandled(r.id, state);
                 return (
                   <li key={`${r.id}${d}`} className={d ? "bv-flash" : ""} style={{ display: "flex", gap: 10, alignItems: "center", padding: "6px 8px", borderRadius: 10 }}>
-                    <span aria-hidden="true" style={{ width: 18, height: 18, flex: "none", borderRadius: 999, display: "inline-flex", alignItems: "center", justifyContent: "center", background: d ? "var(--mint)" : "transparent", border: d ? 0 : `2px ${r.optional ? "dashed" : "solid"} rgba(247,244,236,0.3)` }}>
+                    <span aria-hidden="true" style={{ width: 18, height: 18, flex: "none", borderRadius: 999, display: "inline-flex", alignItems: "center", justifyContent: "center", background: d ? "var(--mint)" : "transparent", border: d ? 0 : `2px ${r.optional ? "dashed" : "solid"} rgba(20,45,59,0.3)` }}>
                       {d && <Check size={11} strokeWidth={3.6} style={{ color: "var(--navy)" }} className="bv-pop" />}
                     </span>
-                    <span style={{ fontSize: 14, flex: 1, minWidth: 0, color: d ? "var(--ivory)" : "var(--muted)" }}>
+                    <span style={{ fontSize: 14, flex: 1, minWidth: 0, color: d ? "var(--navy)" : "var(--muted)" }}>
                       {r.title}
                       {r.optional ? " (optional)" : ""}
                     </span>

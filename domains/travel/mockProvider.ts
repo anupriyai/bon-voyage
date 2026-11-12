@@ -11,6 +11,27 @@ interface MockAirport {
 }
 
 const AIRPORTS: Record<string, MockAirport> = {
+  JFK: { lat: 40.64, lon: -73.78, utc: -300 },
+  LAX: { lat: 33.94, lon: -118.41, utc: -480 },
+  SFO: { lat: 37.62, lon: -122.38, utc: -480 },
+  IAH: { lat: 29.99, lon: -95.34, utc: -360 },
+  YVR: { lat: 49.19, lon: -123.18, utc: -480 },
+  SYD: { lat: -33.95, lon: 151.18, utc: 660 },
+  SIN: { lat: 1.36, lon: 103.99, utc: 480 },
+  LIM: { lat: -12.02, lon: -77.11, utc: -300 },
+  GDL: { lat: 20.52, lon: -103.31, utc: -360 },
+  LIS: { lat: 38.77, lon: -9.13, utc: 0 },
+  BKK: { lat: 13.69, lon: 100.75, utc: 420 },
+  CPT: { lat: -33.97, lon: 18.60, utc: 120 },
+  OOL: { lat: -28.16, lon: 153.51, utc: 600 },
+  ICN: { lat: 37.46, lon: 126.44, utc: 540 },
+  BOG: { lat: 4.70, lon: -74.15, utc: -300 },
+  DEL: { lat: 28.56, lon: 77.10, utc: 330 },
+  KUL: { lat: 2.75, lon: 101.71, utc: 480 },
+  AKL: { lat: -37.01, lon: 174.79, utc: 780 },
+  SHJ: { lat: 25.33, lon: 55.52, utc: 240 },
+  DWC: { lat: 24.90, lon: 55.16, utc: 240 },
+  SPX: { lat: 30.11, lon: 30.89, utc: 120 },
   AMM: { lat: 31.72, lon: 35.99, utc: 180 },
   AQJ: { lat: 29.61, lon: 35.02, utc: 180 },
   RUH: { lat: 24.96, lon: 46.7, utc: 180 },
@@ -26,6 +47,8 @@ const AIRPORTS: Record<string, MockAirport> = {
   LHR: { lat: 51.47, lon: -0.45, utc: 0 },
   DOH: { lat: 25.27, lon: 51.61, utc: 180 },
 };
+/** Airports supported by the public sample planner; no live route availability is implied. */
+export const SAMPLE_AIRPORTS = Object.keys(AIRPORTS).sort();
 const HUBS = ["IST", "DXB", "DOH", "CAI", "FRA", "AMM"];
 const CARRIERS = ["RJ", "TK", "MS", "EK", "LH", "SV", "ME", "QR"];
 
@@ -94,45 +117,55 @@ function itineraries(from: string, to: string, date: string, maxConnections: num
 }
 
 function total(perAdult: number, passengers: Passenger[]) {
-  return passengers.reduce((sum, p) => sum + (p.type === "child" ? Math.round(perAdult * 0.75) : perAdult), 0);
+  return passengers.reduce((sum, p) => sum + (p.type === "infant_without_seat" ? Math.round(perAdult * 0.1) : p.type === "child" ? Math.round(perAdult * 0.75) : perAdult), 0);
 }
 
-export function createMockProvider(): FlightProvider {
+export function createMockProvider({ priceFactor = 1 }: { priceFactor?: number } = {}): FlightProvider {
   const issued = new Map<string, Fare>();
-  const issue = (fares: Fare[]) => {
+  const issue = (fares: Fare[], passengers: Passenger[]) => {
+    fares.forEach((f) => { f.passengerTypes = passengers.map((p) => p.type === "child" && (p.age ?? 0) >= 12 ? "adult" : p.type); });
     fares.sort((x, y) => x.totalAmount - y.totalAmount).forEach((f) => issued.set(f.id, f));
     return fares;
   };
-  const paxKey = (passengers: Passenger[]) => passengers.map((p) => (p.type === "child" ? `c${p.age ?? ""}` : "a")).join("");
+  const paxKey = (passengers: Passenger[]) => passengers.map((p) => (p.type === "infant_without_seat" ? `i${p.age ?? 0}` : p.type === "child" ? `c${p.age ?? ""}` : "a")).join("");
   const fare = (id: string, slices: Slice[], totalAmount: number): Fare => ({
     id,
     provider: "mock",
     slices,
-    totalAmount,
+    totalAmount: Math.round(totalAmount * priceFactor * 100) / 100,
     currency: "USD",
     expiresAt: null,
+    conditions: { refund: "Sample: non-refundable; airline taxes may be recoverable.", change: "Sample: date changes permitted with a fee and fare difference." },
     holdable: rng(id)() < 0.5, // about half of airlines allow a hold
   });
 
-  return {
+  const provider: FlightProvider = {
     name: "mock",
+    mode: "sample",
     async searchOneWay({ from, to, date, passengers, maxConnections = 1 }) {
       const key = paxKey(passengers);
-      return issue(itineraries(from, to, date, maxConnections).map((it, i) => fare(`mock_${from}_${to}_${date}_${key}_${i}`, [it.slice], total(it.perAdult, passengers))));
+      return issue(itineraries(from, to, date, maxConnections).map((it, i) => fare(`mock_${from}_${to}_${date}_${key}_${i}`, [it.slice], total(it.perAdult, passengers))), passengers);
     },
     async searchReturn({ from, to, out, back, passengers, maxConnections = 1 }) {
       const key = paxKey(passengers);
-      const outs = itineraries(from, to, out, maxConnections).slice(0, 2);
-      const backs = itineraries(to, from, back, maxConnections).slice(0, 2);
+      const outs = itineraries(from, to, out, maxConnections);
+      const backs = itineraries(to, from, back, maxConnections);
       const fares = outs.flatMap((o, i) =>
         backs
           .filter((b) => Date.parse(b.slice.segments[0].departAt) > lastArrive(o.slice.segments))
           .map((b, j) => fare(`mock_rt_${from}_${to}_${out}_${back}_${key}_${i}${j}`, [o.slice, b.slice], total(Math.round((o.perAdult + b.perAdult) * 0.92), passengers))),
       );
-      return issue(fares);
+      return issue(fares, passengers);
     },
     async reprice(fareId) {
+      if (issued.has(fareId)) return issued.get(fareId)!;
+      // Sample offer IDs contain the deterministic query, so local sample holds survive a restart.
+      const match = /^mock_rt_([A-Z]{3})_([A-Z]{3})_(\d{4}-\d{2}-\d{2})_(\d{4}-\d{2}-\d{2})_([aci0-9]+)_\d+$/.exec(fareId);
+      if (!match) return null;
+      const party: Passenger[] = (match[5].match(/a|[ci]\d{1,2}/g) ?? []).map((p) => p === "a" ? { type: "adult" } : { type: p.startsWith("i") ? "infant_without_seat" : "child", age: Number(p.slice(1)) });
+      await provider.searchReturn({ from: match[1], to: match[2], out: match[3], back: match[4], passengers: party });
       return issued.get(fareId) ?? null;
     },
   };
+  return provider;
 }

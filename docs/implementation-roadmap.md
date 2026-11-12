@@ -1,18 +1,47 @@
 # Implementation roadmap: remaining phases
 
-Status: 2026-10-26 · branch `test-branch`
+Status: 2026-11-03 · branch `test-branch`
 Companion to [booking-pricing-ai-design.md](booking-pricing-ai-design.md), which holds the design decisions and verified facts. This file says what to build next, in order, how to know each step is done, and what you must do yourself.
 
 ## Where things stand
 
-| Done | Notes |
-|---|---|
-| Phase 1: AI port | Qwen (Ollama) or Claude, opt-in, scripted fallback |
-| Phase 2: database, audit, encryption, sign-in | Postgres 18; `withActor`; hash-chained audit log; AES-GCM; Better Auth magic links |
-| Pricing model | Date window, ranking, price watch rules, widen planner, one-round-trip search, mock flights |
-| Launcher and tooling | `npm run launch` / `launch:status` / `launch:stop` |
+The implementation now reaches **Phase 10's local sample workflow**, with test-provider adapters and operational jobs in place. This is not a production release. Phase 9 remains blocked by external approvals/accounts and an explicit live-booking code gate. Core local browser flows have been reviewed; the remaining browser matrix and real-account verification remain open.
 
-Not built yet: the screens still keep a case in the browser only (nothing is saved to Postgres), there is no flight search screen, no real flights, no booking, no price watch job, no email, and the audit anchoring job is missing.
+| Phase | Built in this checkout | Still needed for acceptance |
+|---|---|---|
+| 1–2 | AI port, database, encryption, audit, authenticated sessions | Fresh live-model evaluation and hosted validation |
+| 3 | Real magic-link UI; encrypted owned cases; serialized autosave, revisions, reload/delete, optimistic Proxy | Broader mobile/keyboard and save-unavailable recovery review; guest adoption, fresh-browser restoration and conflict reload now verified |
+| 4 | Mock flight UI, airport mapping, explained picks, calendar, bounded widening, snapshots, plan totals/dates | Full mobile search/plan review and owner review of alternate-airport/planning assumptions |
+| 5 | Pinned Duffel SDK adapter; airport time zones; typed errors; expiring cache; native-currency ranking with labelled planning FX; shared provider contract tests | Duffel read-write test token, real-account contract run, recorded sanitized fixtures, quota/carrier verification |
+| 6 | Durable unique booking claims; fresh repricing and itinerary checks; traveller/child/infant validation; instant/hold flow; payment claims; bounded safe-503 retry; checking/reconciliation; signed/deduplicated webhooks; cancellation/assistance tasks; review screen/dashboard | Real test-mode instant/hold/payment/schedule-change cases, external webhook delivery, coordinator recovery and production-browser review |
+| 7 | Watches/alerts, baseline/drop rules, database leases and slot dedupe, shared request limiter with interactive reserve, protected job, in-app panels, completed-day email digest ledger, local CLI and cron config | Real provider quota headers/capacity, Resend account/domain and delivery verification, hosted cron and generated-alert browser review |
+| 8 | Protected audit verification/anchor delivery, failure email, production magic-link sender, hashed-key auth throttling, Vercel pool attachment, readiness probe and restore/rotation runbook | Neon/Vercel Pro/Resend setup, independently immutable anchor gateway, external anchors and alerts, hosted restore and key-rotation drills |
+| 9 | Read-only readiness checks and a hard live-booking block; operational/legal checklist | Legal/consent decisions, Claude quality/latency/retention review, actual fees, Duffel live access/billing, live UI/release-gate review and owner-controlled real booking |
+| 10 | Mock and test Stays adapters; accessibility/distance filters; full-rate → quote flow; fresh quote before booking; durable booking/reconciliation; Stays webhook; separate unknown property fees; screen/journey/plan selection | Duffel Stays access, real SDK-shaped fixtures/contract verification, provider suitability confirmation and broader browser matrix |
+
+### Verification on 2026-11-03
+
+- Full Vitest checks run against a fresh disposable PostgreSQL cluster. Final expanded run: **29 suites / 171 tests passed; 1 opt-in real-Duffel test skipped** because no test token was supplied. Details are recorded in [implementation-handoff.md](implementation-handoff.md).
+- Actual Next.js HTTP smoke passes sign-in, private save/reload, stale revisions, sample-cookie/API separation, search/widen, fare snapshots, encryption, audit, duplicate-safe sample flight booking, watch creation, accessible-stay search/quote/booking, protected jobs and sign-out. No provider booking or email was sent externally.
+- Production build, TypeScript and Drizzle migration metadata checks pass. Native Chrome review now covers guest adoption, sign-out/sign-in, a fresh Guest session restoring the server case, direct return paths, two-tab conflict/reload, flight picks and plan selection, an adult/infant sample hold, watch display, and Stays quotes/property fees. Desktop and 400-pixel Stays/hold layouts were inspected. A stale Stays quote on input edits and the booking journey marker were fixed. Exact limits and remaining checks are in the handoff.
+- Local migrations through `0005_stays` are applied. The local audit chain verifies; restricted app role, PostgreSQL 18, transaction-local settings and non-leaking settings pass the read-only probe. These results do not establish Neon pooler behavior. PostgreSQL was returned to its previous stopped state.
+- The production configuration check intentionally reports missing HTTPS/email/anchor/Duffel setup. `--live` also reports that live booking remains blocked. This is a readiness result, not a failing unit test.
+
+Reproduce safely:
+
+```sh
+python3 tooling/testDatabase.py
+python3 tooling/testDatabase.py --command node tooling/smokeCase.mjs
+npm run build
+npx drizzle-kit check --config tooling/drizzle.config.ts
+npm run production:check
+```
+
+For an isolated interactive review, `python3 tooling/testDatabase.py --command node tooling/smokeCase.mjs --browser --webpack` creates fake data on a temporary port, prints short-lived development sign-in URLs (including links requested during review), and waits. Use fake addresses only. `--webpack` avoids the repeated Turbopack reloads observed during this review; its root cause remains unverified. Stop with Ctrl+C to remove its server/database. Do not clear the existing development browser cache to simulate another device; use a separate private browser context.
+
+The optional external flight contract is **off by default**: after configuring a read-write `duffel_test_` token, run `RUN_DUFFEL_CONTRACT=1 npm test -- domains/travel/providerContract.test.ts`. It never accepts a live token. Ordinary tests/CI use mocks and synthetic fixtures; the current synthetic fixtures are not recordings from a Duffel account.
+
+Next steps, in order, are in [implementation-handoff.md](implementation-handoff.md). Hosting and live-release procedures are in [production-readiness.md](production-readiness.md). Nothing has been committed or pushed.
 
 ## How every phase works
 
@@ -35,13 +64,13 @@ Not built yet: the screens still keep a case in the browser only (nothing is sav
 | 9 | Go live with Claude and real money | Anthropic key, Duffel live access, legal advice | M |
 | 10 | Stays (lodging) | Duffel Stays access | M |
 
-Phases 3 and 4 need nothing from you, so they can start immediately. Phase 10 can run in parallel with 7 once access is granted.
+The local implementation for phases 3–8 and 10 is present, with the acceptance gates listed above still open. Phase 9 is not complete. External setup is required to verify the real-provider and hosted paths.
 
 ---
 
 ## Phase 3: Save cases in the database, sign-in screens
 
-**Why:** today a patient's case lives in the browser, so nothing is audited and nothing survives a cleared cache. This is the base the booking and price-watch phases write to.
+**Why:** a patient's case previously lived only in the browser, with no audited persistence. This is the base the booking and price-watch phases write to.
 
 **Build**
 1. `domains/case/db.ts`: add `searches` (case, parameters as JSON, created by) and `fare_snapshots` (search, provider, offer id, slices, total, currency, fetched at, expires at; insert only). Add an audit trigger to `searches` in a new migration (`npm run db:generate -- --custom --name=searches_audit`). Do not audit `fare_snapshots` (high volume, no personal data).
@@ -61,7 +90,7 @@ Phases 3 and 4 need nothing from you, so they can start immediately. Phase 10 ca
 
 ## Phase 4: Flight search screen on the mock provider
 
-**Why:** the design canvas has a Search screen and the app has none. Building it on the mock proves the whole pricing flow before spending Duffel quota.
+**Why:** connect the existing pricing model to an actual Search screen. Building it on the mock proves the whole pricing flow before spending Duffel quota.
 
 **Build**
 1. `domains/travel/` + `domains/pricing/`: a server function `findOptions(case)` in `domains/pricing/` that reads the case (origin, hospital, appointment, treatment and recovery days, travellers, stage and wheelchair need), builds the date window, calls `searchTrips`, ranks with `profileFor(...)`, and returns the three picks, the rejected trips with reasons, and the price calendar. A provider factory picks the mock when `DUFFEL_ACCESS_TOKEN` is unset.
@@ -198,7 +227,7 @@ These map to the strategic bets and are not scheduled: medical record sharing an
 
 ## Your checklist, in order
 
-1. Now: nothing blocks phases 3 and 4.
+1. Now: review the implemented saved-case and sample-flight flows in the browser; validate desktop/mobile layout, cross-device reload and the alternate-airport/planning assumptions.
 2. Before phase 5: Duffel read-write test token, carrier access requests, the email to Duffel.
 3. Before phase 7: Resend account and a verified domain.
 4. Before phase 8: Neon, Vercel Pro, an external place for audit anchors.

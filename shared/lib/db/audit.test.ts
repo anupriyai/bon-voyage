@@ -104,10 +104,13 @@ describe.skipIf(!APP_URL || !OWNER_URL)("audit trail (database)", () => {
     const log = JSON.stringify(await rows());
     expect(log).not.toContain("Yousef");
     expect(log).not.toContain("Al-Masri");
-    expect(log).not.toContain("1958");
+    // Check the complete secret: a year fragment can occur in unrelated timestamp microseconds.
+    expect(log).not.toContain("1958-03-02");
     expect(log).not.toContain("example.com");
     const traveler = (await rows()).find((r) => r.table_name === "travelers")!;
     expect(traveler.changed.given_name).toEqual({ redacted: true });
+    expect(traveler.changed.family_name).toEqual({ redacted: true });
+    expect(traveler.changed.born_on).toEqual({ redacted: true });
     expect(traveler.changed.role).toEqual({ old: null, new: "patient" });
   });
 

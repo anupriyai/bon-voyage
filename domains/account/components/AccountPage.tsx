@@ -12,6 +12,8 @@ import { HOSPITAL_BY_ID } from "@/domains/case";
 import { caseTitle, managedLine } from "@/domains/case";
 import { fmtDay } from "@/shared/lib/format";
 import { resumePath, useCase, type CaseState } from "@/domains/case";
+import SavedCareTrips from "./SavedCareTrips";
+import AccountNav from "./AccountNav";
 
 function phaseIndex(c: CaseState): number {
   const path = resumePath(c);
@@ -28,7 +30,7 @@ function stageLine(c: CaseState): string {
 }
 
 export default function AccountPage() {
-  const { ready, session, myCases, draft, openCase, deleteCase, startDraft, loadSample } = useCase();
+  const { ready, session, myCases, draft, openCase, deleteCase, startDraft, loadSample, saveStatus, saveNow, reloadCases } = useCase();
   const router = useRouter();
 
   useEffect(() => {
@@ -47,16 +49,26 @@ export default function AccountPage() {
       <main className="wrap flow-main" aria-busy={!ready || !session}>
         <section className="flow-section">
           <AssistantIdentity status={session ? `Signed in as ${session.email}` : "Checking your session"} />
-          <h1 className="bv-in" style={{ margin: 0, fontSize: "clamp(34px, 3.8vw, 50px)", lineHeight: 1.06, letterSpacing: "-0.03em", fontWeight: 800 }}>
+          <h1 className="bv-in" style={{ margin: 0, fontSize: "clamp(34px, 3.8vw, 50px)", lineHeight: 1.06, letterSpacing: "-0.03em", fontWeight: 500 }}>
             Your journeys
           </h1>
-          <p className="bv-in bv-d1" style={{ margin: "12px 0 0", fontSize: 18, color: "var(--muted)" }}>Everything you add is saved to the case. Pick up wherever you left off.</p>
+          <p className="bv-in bv-d1" style={{ margin: "12px 0 0", fontSize: 18, color: "var(--muted)" }}>Your saved care trips and guided journeys, together. Pick up wherever you left off.</p>
+          <AccountNav />
 
+          {session && <SavedCareTrips key={session.email} accountId={session.email} />}
+
+          <h2 style={{ marginTop: 28, fontWeight: 500 }}>Guided journeys</h2>
+
+          <p role="status" style={{ color: "var(--muted)" }}>
+            {saveStatus === "saved" ? "Saved to your account." : saveStatus === "saving" ? "Saving your changes…" : saveStatus === "conflict" ? "This case changed on another device. Reload before editing." : saveStatus === "error" ? "Your changes are on this device; account saving is unavailable." : "Loading your saved cases…"}
+            {(saveStatus === "error" || saveStatus === "conflict") && <button type="button" className="link-btn" onClick={() => { if (window.confirm("Reload saved cases? Unsaved changes on this device will be replaced.")) reloadCases(); }}>Reload saved cases</button>}
+            {saveStatus === "error" && <button type="button" className="link-btn" onClick={() => { void saveNow().catch(() => {}); }}>Retry saving</button>}
+          </p>
           {draft && (
             <div className="card-d bv-in bv-d2" style={{ marginTop: 24, display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center", justifyContent: "space-between" }}>
               <div>
-                <div className="eyebrow" style={{ color: "var(--sand)" }}>Unfinished story</div>
-                <div style={{ fontSize: 20, fontWeight: 800 }}>{draft.intake.patientName}</div>
+                <div className="eyebrow" style={{ color: "var(--rust)" }}>Unfinished story</div>
+                <div style={{ fontSize: 20, fontWeight: 500 }}>{draft.intake.patientName}</div>
                 <div style={{ fontSize: 14, color: "var(--muted)" }}>Your answers so far are saved.</div>
               </div>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -71,13 +83,13 @@ export default function AccountPage() {
               <li key={c.id} className="card-d bv-in" style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center", animationDelay: `${0.2 + k * 0.08}s` }}>
                 <div style={{ flex: "1 1 320px", minWidth: 0 }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 20, fontWeight: 800 }}>{caseTitle(c.intake)}</span>
+                    <span style={{ fontSize: 20, fontWeight: 500 }}>{caseTitle(c.intake)}</span>
                     {c.sample && <span className="pill pill-wait">Sample</span>}
                   </div>
                   <div style={{ fontSize: 14, color: "var(--muted)" }}>{managedLine(c.intake)}</div>
                   <div style={{ marginTop: 10, display: "flex", gap: 4, alignItems: "center" }} aria-label={`Step ${phaseIndex(c) + 1} of ${PHASES.length}`}>
                     {PHASES.map((p, n) => (
-                      <span key={p.label} style={{ height: 6, flex: 1, maxWidth: 48, borderRadius: 999, background: n < phaseIndex(c) ? "var(--mint)" : n === phaseIndex(c) ? "var(--sand)" : "rgba(247,244,236,0.15)" }} />
+                      <span key={p.label} style={{ height: 6, flex: 1, maxWidth: 48, borderRadius: 999, background: n < phaseIndex(c) ? "var(--mint)" : n === phaseIndex(c) ? "var(--sand)" : "rgba(20,45,59,0.15)" }} />
                     ))}
                   </div>
                   <div style={{ marginTop: 6, fontSize: 14 }}>
@@ -89,7 +101,7 @@ export default function AccountPage() {
                     type="button"
                     className="link-btn"
                     onClick={() => {
-                      if (window.confirm("Delete this case from this browser? This can't be undone.")) deleteCase(c.id);
+                      if (window.confirm("Delete this saved case? This can't be undone.")) deleteCase(c.id);
                     }}
                   >
                     Delete
@@ -104,7 +116,7 @@ export default function AccountPage() {
           </ul>
 
           {ready && myCases.length === 0 && !draft && (
-            <p className="card-d" style={{ marginTop: 24, color: "#dce6e2" }}>No cases yet. Tell the assistant what’s happening and it builds the case from there.</p>
+            <p className="card-d" style={{ marginTop: 24, color: "var(--ink-soft)" }}>No cases yet. Tell the assistant what’s happening and it builds the case from there.</p>
           )}
 
           <div className="actions">

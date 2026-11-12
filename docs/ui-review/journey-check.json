@@ -1,0 +1,113 @@
+{
+  "report": [
+    {
+      "path": "/account",
+      "width": 1440,
+      "heading": "Your journeys",
+      "overflow": 0
+    },
+    {
+      "path": "/case/records",
+      "width": 1440,
+      "heading": "Let’s gather FAKE’s records.\nLet’s gather FAKE’s records.",
+      "overflow": 0
+    },
+    {
+      "path": "/case/second-opinion",
+      "width": 1440,
+      "heading": "Would a second opinion help?\nWould a second opinion help?",
+      "overflow": 0
+    },
+    {
+      "path": "/case/options",
+      "width": 1440,
+      "heading": "Which one should we plan around?\nWhich one should we plan around?",
+      "overflow": 0
+    },
+    {
+      "path": "/case/flights",
+      "width": 1440,
+      "heading": "An easier journey to your care.\nAn easier journey to your care.",
+      "overflow": 0
+    },
+    {
+      "path": "/case/stays",
+      "width": 1440,
+      "heading": "A stay close to your hospital.",
+      "overflow": 0
+    },
+    {
+      "path": "/case/booking",
+      "width": 1440,
+      "heading": "Review your flight booking.",
+      "overflow": 0
+    },
+    {
+      "path": "/case/plan",
+      "width": 1440,
+      "heading": "Your trip to Istanbul.\nYour trip to Istanbul.",
+      "overflow": 0
+    },
+    {
+      "path": "/case/dashboard",
+      "width": 1440,
+      "heading": "Approve your plan first.\nApprove your plan first.",
+      "overflow": 0
+    },
+    {
+      "path": "/account",
+      "width": 390,
+      "heading": "Your journeys",
+      "overflow": 0
+    },
+    {
+      "path": "/case/records",
+      "width": 390,
+      "heading": "Let’s gather FAKE’s records.\nLet’s gather FAKE’s records.",
+      "overflow": 0
+    },
+    {
+      "path": "/case/second-opinion",
+      "width": 390,
+      "heading": "Would a second opinion help?\nWould a second opinion help?",
+      "overflow": 0
+    },
+    {
+      "path": "/case/options",
+      "width": 390,
+      "heading": "Which one should we plan around?\nWhich one should we plan around?",
+      "overflow": 0
+    },
+    {
+      "path": "/case/flights",
+      "width": 390,
+      "heading": "An easier journey to your care.\nAn easier journey to your care.",
+      "overflow": 0
+    },
+    {
+      "path": "/case/stays",
+      "width": 390,
+      "heading": "A stay close to your hospital.",
+      "overflow": 0
+    },
+    {
+      "path": "/case/booking",
+      "width": 390,
+      "heading": "Review your flight booking.",
+      "overflow": 0
+    },
+    {
+      "path": "/case/plan",
+      "width": 390,
+      "heading": "Your trip to Istanbul.\nYour trip to Istanbul.",
+      "overflow": 0
+    },
+    {
+      "path": "/case/dashboard",
+      "width": 390,
+      "heading": "Approve your plan first.\nApprove your plan first.",
+      "overflow": 0
+    }
+  ],
+  "errors": []
+}

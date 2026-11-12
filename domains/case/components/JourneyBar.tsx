@@ -13,6 +13,8 @@ export const PHASES = [
   { label: "Records", href: "/case/records" },
   { label: "Second opinion", href: "/case/second-opinion" },
   { label: "Options", href: "/case/options" },
+  { label: "Flights", href: "/case/flights" },
+  { label: "Stay", href: "/case/stays" },
   { label: "Plan", href: "/case/plan" },
   { label: "Ready to travel", href: "/case/dashboard" },
 ];
@@ -22,6 +24,8 @@ const STAGE_LINE = [
   "adding records",
   "requesting a second opinion",
   "comparing options",
+  "comparing flights",
+  "comparing stays",
   "reviewing the plan",
   "getting ready to travel",
 ];
@@ -40,8 +44,8 @@ export function PhaseList({ active, sub = "", links = true }: { active: number; 
         {PHASES.map((p, i) => {
           const style = {
             fontWeight: i === active ? 700 : 500,
-            color: i <= active ? "var(--ivory)" : "var(--muted-2)",
-            background: i === active ? "rgba(247,244,236,0.08)" : "transparent",
+            color: i <= active ? "var(--navy)" : "var(--muted-2)",
+            background: i === active ? "rgba(20,45,59,0.08)" : "transparent",
           };
           const inner = (
             <>
@@ -52,7 +56,7 @@ export function PhaseList({ active, sub = "", links = true }: { active: number; 
                   height: 10,
                   borderRadius: 999,
                   flex: "none",
-                  background: i < active ? "var(--mint)" : i === active ? "var(--sand)" : "rgba(247,244,236,0.22)",
+                  background: i < active ? "var(--mint)" : i === active ? "var(--sand)" : "rgba(20,45,59,0.22)",
                   boxShadow: i === active ? "0 0 0 4px rgba(243,174,120,0.22)" : "none",
                 }}
               />
@@ -96,7 +100,7 @@ export function Brand() {
 
 /** Top bar for every step after the story: progress, autosave, currency and the coordinator. */
 export default function JourneyBar({ active }: { active: number }) {
-  const { openChat, state } = useCase();
+  const { openChat, state, saveStatus, saveNow, reloadCases } = useCase();
   const unread = state.chat.length > 0 && state.chat[state.chat.length - 1].from === "coordinator";
   return (
     <header className="topbar">
@@ -106,7 +110,9 @@ export default function JourneyBar({ active }: { active: number }) {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span className="hide-md" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, color: "var(--muted)" }}>
             <Check size={15} style={{ color: "var(--mint)" }} />
-            Saved
+            <span role="status">{state.sample ? "Sample · on this device" : saveStatus === "saved" ? "Saved to account" : saveStatus === "saving" ? "Saving…" : saveStatus === "conflict" ? "Changed on another device" : saveStatus === "error" ? "Save unavailable" : "On this device"}</span>
+            {saveStatus === "error" && <button type="button" className="link-btn" onClick={() => { void saveNow().catch(() => {}); }}>Retry</button>}
+            {(saveStatus === "conflict" || saveStatus === "error") && <button type="button" className="link-btn" onClick={() => { if (window.confirm("Reload saved cases? Unsaved changes will be replaced.")) reloadCases(); }}>Reload</button>}
           </span>
           <CurrencyMenu />
           <button
@@ -114,7 +120,7 @@ export default function JourneyBar({ active }: { active: number }) {
             className="pill-btn"
             onClick={() => openChat()}
             aria-label={`Message ${firstName(COORDINATOR.name)}, your coordinator`}
-            style={{ padding: "0 14px 0 5px", background: "rgba(247,244,236,0.06)" }}
+            style={{ padding: "0 14px 0 5px", background: "rgba(20,45,59,0.06)" }}
           >
             <span className="avatar" aria-hidden="true" style={{ position: "relative", width: 32, height: 32, background: "var(--sand)", fontSize: 13 }}>
               {COORDINATOR.initials}
@@ -152,6 +158,7 @@ export function CoordinatorDrawer({ stage }: { stage: string }) {
   const [msg, setMsg] = useState(chatDraft);
   const [sent, setSent] = useState(false);
   const end = useRef<HTMLDivElement>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
   const i = state.intake;
   const hala = firstName(COORDINATOR.name);
 
@@ -163,10 +170,17 @@ export function CoordinatorDrawer({ stage }: { stage: string }) {
   }, [chatOpen, chatDraft]);
   useEffect(() => {
     if (!chatOpen) return;
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && closeChat();
-    document.addEventListener("keydown", esc);
-    return () => document.removeEventListener("keydown", esc);
-  }, [chatOpen, closeChat]);
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const panel = dialog.current;
+    const overflow = document.body.style.overflow;
+    panel?.showModal();
+    document.body.style.overflow = "hidden";
+    return () => {
+      panel?.close();
+      document.body.style.overflow = overflow;
+      previousFocus?.focus();
+    };
+  }, [chatOpen]);
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
   }, [state.chat.length, chatOpen]);
@@ -183,22 +197,20 @@ export function CoordinatorDrawer({ stage }: { stage: string }) {
     .join(" · ");
 
   return (
-    <>
-      <button type="button" tabIndex={-1} aria-label="Close message panel" className="scrim" onClick={closeChat} />
-      <section role="dialog" aria-modal="true" aria-label={`Message ${COORDINATOR.name}`} className="drawer">
-        <div style={{ padding: 20, display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid rgba(247,244,236,0.1)" }}>
+      <dialog ref={dialog} aria-label={`Message ${COORDINATOR.name}`} className="drawer" onCancel={(event) => { event.preventDefault(); closeChat(); }} onClick={(event) => { if (event.target === dialog.current) closeChat(); }}>
+        <div style={{ padding: 20, display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid rgba(20,45,59,0.1)" }}>
           <span className="avatar" aria-hidden="true" style={{ width: 48, height: 48, background: "var(--sand)" }}>
             {COORDINATOR.initials}
           </span>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: 18 }}>{COORDINATOR.name}</div>
+            <div style={{ fontWeight: 500, fontSize: 18 }}>{COORDINATOR.name}</div>
             <div style={{ fontSize: 13, color: "var(--muted)" }}>Care coordinator · Arabic and English · replies within 2 hours</div>
           </div>
           <button
             type="button"
             onClick={closeChat}
             aria-label="Close"
-            style={{ marginLeft: "auto", width: 44, height: 44, borderRadius: 999, border: 0, background: "rgba(247,244,236,0.1)", color: "var(--ivory)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "none" }}
+            style={{ marginLeft: "auto", width: 44, height: 44, borderRadius: 999, border: 0, background: "rgba(20,45,59,0.1)", color: "var(--navy)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "none" }}
           >
             <Close />
           </button>
@@ -216,7 +228,7 @@ export function CoordinatorDrawer({ stage }: { stage: string }) {
                     padding: "10px 14px",
                     borderRadius: 16,
                     fontSize: 15,
-                    background: m.from === "you" ? "var(--teal)" : "rgba(247,244,236,0.08)",
+                    background: m.from === "you" ? "var(--sage)" : "rgba(20,45,59,0.08)",
                   }}
                 >
                   {m.text}
@@ -239,42 +251,42 @@ export function CoordinatorDrawer({ stage }: { stage: string }) {
             </div>
           ) : (
             <>
-              <div style={{ padding: 16, borderRadius: 18, background: "rgba(247,244,236,0.06)", border: "1px solid rgba(247,244,236,0.12)" }}>
-                <div className="eyebrow" style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--mint-soft)", letterSpacing: "0.08em" }}>
+              <div style={{ padding: 16, borderRadius: 18, background: "rgba(20,45,59,0.06)", border: "1px solid rgba(20,45,59,0.12)" }}>
+                <div className="eyebrow" style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--teal-ink)", letterSpacing: "0.08em" }}>
                   <Sparkle size={14} />
                   Brief {hala} will see · AI draft
                 </div>
-                <ul style={{ margin: "10px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6, fontSize: 14, color: "#dce6e2" }}>
+                <ul style={{ margin: "10px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6, fontSize: 14, color: "var(--ink-soft)" }}>
                   {caseLine && (
                     <li>
-                      <strong style={{ color: "var(--ivory)" }}>Case:</strong> {caseLine}
+                      <strong style={{ color: "var(--navy)" }}>Case:</strong> {caseLine}
                     </li>
                   )}
                   <li>
-                    <strong style={{ color: "var(--ivory)" }}>Priorities:</strong>{" "}
+                    <strong style={{ color: "var(--navy)" }}>Priorities:</strong>{" "}
                     {i.priorities.map((p) => PRIORITY_WORD[p]).join(" → ")}
                   </li>
                   {stage && (
                     <li>
-                      <strong style={{ color: "var(--ivory)" }}>Where you are:</strong> {stage}
+                      <strong style={{ color: "var(--navy)" }}>Where you are:</strong> {stage}
                     </li>
                   )}
                 </ul>
                 <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--muted)" }}>You review this before it’s sent. Nothing goes to a hospital from here.</p>
               </div>
-              <label className="label" style={{ color: "var(--ivory)", fontWeight: 700 }}>
+              <label className="label" style={{ color: "var(--navy)", fontWeight: 500 }}>
                 Your message
                 <textarea
                   value={msg}
                   onChange={(e) => setMsg(e.target.value)}
                   rows={4}
                   placeholder="Ask anything, in Arabic or English"
-                  style={{ borderRadius: 16, border: "1.5px solid rgba(247,244,236,0.2)", background: "rgba(247,244,236,0.06)", font: "inherit", fontSize: 16, fontWeight: 400, padding: "12px 14px", resize: "vertical", color: "var(--ivory)" }}
+                  style={{ borderRadius: 16, border: "1.5px solid rgba(20,45,59,0.2)", background: "rgba(20,45,59,0.06)", font: "inherit", fontSize: 16, fontWeight: 400, padding: "12px 14px", resize: "vertical", color: "var(--navy)" }}
                 />
               </label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {QUICK.map((q) => (
-                  <button key={q} type="button" className="bv-chip" onClick={() => setMsg(q)} style={{ minHeight: 40, padding: "6px 12px", borderRadius: 999, border: "1.5px solid rgba(247,244,236,0.18)", background: "transparent", color: "var(--ivory)", fontSize: 14, cursor: "pointer" }}>
+                  <button key={q} type="button" className="bv-chip" onClick={() => setMsg(q)} style={{ minHeight: 40, padding: "6px 12px", borderRadius: 999, border: "1.5px solid rgba(20,45,59,0.18)", background: "transparent", color: "var(--navy)", fontSize: 14, cursor: "pointer" }}>
                     {q}
                   </button>
                 ))}
@@ -296,7 +308,6 @@ export function CoordinatorDrawer({ stage }: { stage: string }) {
           )}
           <div ref={end} />
         </div>
-      </section>
-    </>
+      </dialog>
   );
 }
