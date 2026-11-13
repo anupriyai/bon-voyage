@@ -26,16 +26,23 @@
       "@/*": [
         "./*"
       ]
-    }
+    },
+    "tsBuildInfoFile": ".next/cache/tsconfig.tsbuildinfo"
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    "tooling/**/*.mts",
+    ".next-isolated/types/**/*.ts",
+    ".next-isolated/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "bon-voyage",
+    ".next/types/* *.ts",
+    ".next/dev/types/* *.ts"
   ]
 }

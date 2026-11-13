@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function CaseIndex() {
-  redirect("/case/about");
+  redirect("/case/records");
 }

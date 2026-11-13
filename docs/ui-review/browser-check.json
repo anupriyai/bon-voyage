@@ -1,0 +1,247 @@
+{
+  "public": [
+    {
+      "path": "/",
+      "width": 1440,
+      "h1": "Your care\njourney,\nconnected.",
+      "font": "matter, \"matter Fallback\", Matter, system-ui, sans-serif",
+      "overflow": 0
+    },
+    {
+      "path": "/about",
+      "width": 1440,
+      "h1": "Care is personal.\nThe journey should be too.",
+      "font": "matter, \"matter Fallback\", Matter, system-ui, sans-serif",
+      "overflow": 0
+    },
+    {
+      "path": "/how-it-works",
+      "width": 1440,
+      "h1": "From “where do I start?”\nto a clearer next step.",
+      "font": "matter, \"matter Fallback\", Matter, system-ui, sans-serif",
+      "overflow": 0
+    },
+    {
+      "path": "/contact",
+      "width": 1440,
+      "h1": "A little clarity.\nA person when you need one.",
+      "font": "matter, \"matter Fallback\", Matter, system-ui, sans-serif",
+      "overflow": 0
+    },
+    {
+      "path": "/privacy",
+      "width": 1440,
+      "h1": "Your story deserves\ncareful handling.",
+      "font": "matter, \"matter Fallback\", Matter, system-ui, sans-serif",
+      "overflow": 0
+    },
+    {
+      "path": "/login",
+      "width": 1440,
+      "h1": "Your journey, saved.",
+      "font": "matter, \"matter Fallback\", Matter, system-ui, sans-serif",
+      "overflow": 0
+    },
+    {
+      "path": "/start",
+      "width": 1440,
+      "h1": "Tell me what’s happening, in your own words.\nTell me what’s happening, in your own words.",
+      "font": "matter, \"matter Fallback\", Matter, system-ui, sans-serif",
+      "overflow": 0
+    },
+    {
+      "path": "/",
+      "width": 390,
+      "h1": "Your care\njourney,\nconnected.",
+      "font": "matter, \"matter Fallback\", Matter, system-ui, sans-serif",
+      "overflow": 0
+    },
+    {
+      "path": "/about",
+      "width": 390,
+      "h1": "Care is personal.\nThe journey should be too.",
+      "font": "matter, \"matter Fallback\", Matter, system-ui, sans-serif",
+      "overflow": 0
+    },
+    {
+      "path": "/how-it-works",
+      "width": 390,
+      "h1": "From “where do I start?”\nto a clearer next step.",
+      "font": "matter, \"matter Fallback\", Matter, system-ui, sans-serif",
+      "overflow": 0
+    },
+    {
+      "path": "/contact",
+      "width": 390,
+      "h1": "A little clarity.\nA person when you need one.",
+      "font": "matter, \"matter Fallback\", Matter, system-ui, sans-serif",
+      "overflow": 0
+    },
+    {
+      "path": "/privacy",
+      "width": 390,
+      "h1": "Your story deserves\ncareful handling.",
+      "font": "matter, \"matter Fallback\", Matter, system-ui, sans-serif",
+      "overflow": 0
+    },
+    {
+      "path": "/login",
+      "width": 390,
+      "h1": "Your journey, saved.",
+      "font": "matter, \"matter Fallback\", Matter, system-ui, sans-serif",
+      "overflow": 0
+    },
+    {
+      "path": "/start",
+      "width": 390,
+      "h1": "Tell me what’s happening, in your own words.\nTell me what’s happening, in your own words.",
+      "font": "matter, \"matter Fallback\", Matter, system-ui, sans-serif",
+      "overflow": 0
+    }
+  ],
+  "journey": [
+    {
+      "path": "/case",
+      "width": 1440,
+      "url": "http://127.0.0.1:64269/case",
+      "headings": [],
+      "overflow": 0
+    },
+    {
+      "path": "/case/records",
+      "width": 1440,
+      "url": "http://127.0.0.1:64269/case/records",
+      "headings": [
+        "Let’s gather Yousef’s records.\nLet’s gather Yousef’s records.",
+        "Records checklist"
+      ],
+      "overflow": 0
+    },
+    {
+      "path": "/case/second-opinion",
+      "width": 1440,
+      "url": "http://127.0.0.1:64269/case/second-opinion",
+      "headings": [
+        "Would a second opinion help?\nWould a second opi|",
+        "Second opinion"
+      ],
+      "overflow": 0
+    },
+    {
+      "path": "/case/options",
+      "width": 1440,
+      "url": "http://127.0.0.1:64269/case/options",
+      "headings": [
+        "Here’s how they stack up.\nHere’s how they stack up|",
+        "Your choice so far"
+      ],
+      "overflow": 0
+    },
+    {
+      "path": "/case/flights",
+      "width": 1440,
+      "url": "http://127.0.0.1:64269/case/flights",
+      "headings": [
+        "An easier journey to your care.\nAn easier journey to your care."
+      ],
+      "overflow": 0
+    },
+    {
+      "path": "/case/stays",
+      "width": 1440,
+      "url": "http://127.0.0.1:64269/case/stays",
+      "headings": [
+        "A stay close to your hospital."
+      ],
+      "overflow": 0
+    },
+    {
+      "path": "/case/plan",
+      "width": 1440,
+      "url": "http://127.0.0.1:64269/case/plan",
+      "headings": [
+        "Pick a hospital first.\nPick a hospital first."
+      ],
+      "overflow": 0
+    },
+    {
+      "path": "/case",
+      "width": 390,
+      "url": "http://127.0.0.1:64269/case/records",
+      "headings": [
+        "Let’s gather Yousef’s records.\nLet’s gather Yousef’s records.",
+        "Records checklist"
+      ],
+      "overflow": 0
+    },
+    {
+      "path": "/case/records",
+      "width": 390,
+      "url": "http://127.0.0.1:64269/case/records",
+      "headings": [
+        "Let’s gather Yousef’s records.\nLet’s gather Yousef’s records.",
+        "Records checklist"
+      ],
+      "overflow": 0
+    },
+    {
+      "path": "/case/second-opinion",
+      "width": 390,
+      "url": "http://127.0.0.1:64269/case/second-opinion",
+      "headings": [
+        "Would a second opinion help?\nWould a second opi|",
+        "Second opinion"
+      ],
+      "overflow": 0
+    },
+    {
+      "path": "/case/options",
+      "width": 390,
+      "url": "http://127.0.0.1:64269/case/options",
+      "headings": [
+        "Here’s how they stack up.\nHere’s how they stack up.",
+        "Your choice so far"
+      ],
+      "overflow": 0
+    },
+    {
+      "path": "/case/flights",
+      "width": 390,
+      "url": "http://127.0.0.1:64269/case/flights",
+      "headings": [
+        "An easier journey to your care.\nAn easier journey to your care."
+      ],
+      "overflow": 0
+    },
+    {
+      "path": "/case/stays",
+      "width": 390,
+      "url": "http://127.0.0.1:64269/case/stays",
+      "headings": [
+        "A stay close to your hospital."
+      ],
+      "overflow": 0
+    },
+    {
+      "path": "/case/plan",
+      "width": 390,
+      "url": "http://127.0.0.1:64269/case/plan",
+      "headings": [
+        "Pick a hospital first.\nPick a hospital first."
+      ],
+      "overflow": 0
+    }
+  ],
+  "motion": {
+    "globeMoves": true,
+    "autoCycle": {
+      "initial": "Dental implants in Lima",
+      "next": "Knee arthroscopy in Guadalajara"
+    },
+    "pauseWorks": true,
+    "reducedMotionWorks": true
+  },
+  "errors": [],
+  "mobileMenu": true,
+  "sampleURL": "http://127.0.0.1:64269/case/second-opinion"
+}

@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-11-11T00:56:10.159Z",
+  "checks": [
+    "Real scheduled watch recheck after sample-price reduction generated one alert; protected-job replay deduplicated it; authenticated mobile panel displayed the actual lower fare",
+    "Mobile new story intake, brief review, case creation, magic-link adoption, hospital choice, adult+companion flight search/selection and account-owned saved case passed; save-network failure preserved choices and keyboard retry saved successfully after cancelled reload",
+    "Mobile plan ownership, proposed-change dismissal, explicit review and simulated approval completed to dashboard; failed flight search recovered without raw browser errors",
+    "320/390/768px intake-edit, options, flights, plan and dashboard had no horizontal overflow; keyboard reload-cancel/retry and coordinator dialog Escape/focus return passed; no runtime errors in reduced-motion mode"
+  ],
+  "sampleOnly": true
+}

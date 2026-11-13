@@ -1,24 +1,26 @@
-import type { Metadata } from "next";
-import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
-import "./globals.css";
-import "./flow.css";
-import { CaseProvider } from "@/lib/store";
+ import type { Metadata } from "next";
+import localFont from "next/font/local";
+import "./bv.css";
+import { CurrencyProvider } from "@/shared/lib/currency";
+import PageMotion from "@/shared/ui/PageMotion";
+import { CaseProvider } from "@/domains/case/state/store";
+import { siteOrigin } from "@/shared/lib/siteMetadata";
 
-const display = Bricolage_Grotesque({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["600", "700", "800"],
-});
-
-const body = Hanken_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-body",
+const matter = localFont({
+  src: [
+    { path: "../public/fonts/matterRegular.woff2", weight: "400", style: "normal" },
+    { path: "../public/fonts/matterMedium.woff2", weight: "500", style: "normal" },
+    { path: "../public/fonts/matterSemibold.woff2", weight: "600", style: "normal" },
+  ],
+  variable: "--font-matter",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Bon Voyage — Cross-border care coordination",
+  metadataBase: new URL(siteOrigin()),
+  title: "Bon Voyage — Your care journey, connected",
   description:
-    "Bon Voyage helps patients and families find trusted specialists abroad, compare real costs, and plan every step of treatment and recovery in one place.",
+    "Explore care abroad with an AI-guided plan shaped around you, from understanding your options to coordinating travel, with a named coordinator alongside.",
 };
 
 export default function RootLayout({
@@ -27,10 +29,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" className={`${display.variable} ${body.variable}`}>
+    <html lang="en" data-scroll-behavior="smooth" className={matter.variable}>
       {/* Browser extensions (e.g. Grammarly) add attributes to <body> before React hydrates. */}
       <body suppressHydrationWarning>
-        <CaseProvider>{children}</CaseProvider>
+        <CurrencyProvider>
+          <CaseProvider><PageMotion />{children}</CaseProvider>
+        </CurrencyProvider>
       </body>
     </html>
   );
